@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cornu-spline — smooth Cornu / Euler-spiral curves for JS & React</title>
+		<meta
+			name="description"
+			content="Smooth Cornu (Euler-spiral / Spiro) interpolating splines through points — vanilla JS + React, with SVG, Canvas, text rendering, and animation."
+		/>
+		<style>
+			:root {
+				--ink: #111;
+				--muted: #666;
+				--line: #e6e6e6;
+				--accent: #111;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				font: 15px/1.6 system-ui, -apple-system, sans-serif;
+				color: var(--ink);
+				margin: 0;
+				background: #fff;
+			}
+			.wrap {
+				max-width: 860px;
+				margin: 0 auto;
+				padding: 2.5rem 1.25rem 5rem;
+			}
+			h1 {
+				font-size: 2rem;
+				margin: 0 0 0.25rem;
+			}
+			.lede {
+				color: var(--muted);
+				margin: 0 0 1.5rem;
+			}
+			a {
+				color: #0b62d6;
+			}
+			.links {
+				display: flex;
+				gap: 1rem;
+				flex-wrap: wrap;
+				margin-bottom: 2rem;
+			}
+			section {
+				border-top: 1px solid var(--line);
+				padding-top: 1.5rem;
+				margin-top: 2rem;
+			}
+			h2 {
+				font-size: 1.1rem;
+			}
+			.stage {
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				background: #fff;
+				width: 100%;
+				display: block;
+			}
+			.controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 1rem;
+				align-items: center;
+				margin: 1rem 0;
+				color: var(--muted);
+			}
+			label {
+				display: flex;
+				gap: 0.4rem;
+				align-items: center;
+			}
+			input[type='text'] {
+				padding: 0.35rem 0.5rem;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				font: inherit;
+			}
+			button {
+				padding: 0.4rem 0.8rem;
+				border-radius: 6px;
+				border: 1px solid #ccc;
+				background: #fafafa;
+				cursor: pointer;
+				font: inherit;
+			}
+			code {
+				background: #f4f4f4;
+				padding: 0.1rem 0.35rem;
+				border-radius: 4px;
+			}
+			@keyframes cornu-draw {
+				to {
+					stroke-dashoffset: 0;
+				}
+			}
+			path.draw {
+				stroke-dasharray: 1;
+				stroke-dashoffset: 1;
+				animation: cornu-draw 1.8s ease-in-out forwards;
+			}
+			footer {
+				color: var(--muted);
+				font-size: 0.85rem;
+				margin-top: 3rem;
+			}
+		</style>
+		<script type="importmap">
+			{
+				"imports": {
+					"cornu-spline": "https://cdn.jsdelivr.net/npm/cornu-spline@0.3.0/dist/index.js",
+					"cornu-spline/text": "https://cdn.jsdelivr.net/npm/cornu-spline@0.3.0/dist/text.js",
+					"opentype.js": "https://cdn.jsdelivr.net/npm/opentype.js@2/dist/opentype.mjs"
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div class="wrap">
+			<h1>cornu-spline</h1>
+			<p class="lede">
+				Smooth <strong>Cornu</strong> (Euler-spiral / Spiro) interpolating
+				splines through points — vanilla JS + React, with SVG, Canvas, text
+				rendering, and animation.
+			</p>
+			<div class="links">
+				<a href="https://www.npmjs.com/package/cornu-spline">npm</a>
+				<a href="https://github.com/QuiteQuinn/cornu-spline">GitHub</a>
+				<code>npm i cornu-spline</code>
+			</div>
+
+			<!-- Hero: flowing text that draws itself on -->
+			<section style="border-top: none; margin-top: 0; padding-top: 0">
+				<svg class="stage" id="hero" height="240" viewBox="0 0 860 240"></svg>
+				<div class="controls">
+					<label>Text <input type="text" id="heroText" value="Cornu" /></label>
+					<label
+						><input type="checkbox" id="heroSingle" checked /> Single stroke
+						(original look)</label
+					>
+					<button id="heroReplay">Replay draw-on</button>
+				</div>
+			</section>
+
+			<!-- Text playground -->
+			<section>
+				<h2>Text → spline</h2>
+				<svg class="stage" id="textStage" height="220" viewBox="0 0 860 220"></svg>
+				<div class="controls">
+					<label>Detail <input type="range" id="detail" min="1" max="8" value="4" /></label>
+					<label>Jitter <input type="range" id="jitter" min="0" max="20" value="0" /></label>
+					<label>Tweaks <input type="range" id="tweaks" min="0" max="30" value="20" /></label>
+					<label><input type="checkbox" id="single" /> Single stroke</label>
+				</div>
+			</section>
+
+			<!-- Points + animation -->
+			<section>
+				<h2>Points, draw-on &amp; wobble</h2>
+				<svg class="stage" id="anim" height="320" viewBox="0 0 860 320"></svg>
+				<div class="controls">
+					<button id="replay">Replay draw-on</button>
+					<label><input type="checkbox" id="wobble" /> Wobble</label>
+					<span>Click the panel to add points.</span>
+				</div>
+			</section>
+
+			<footer>
+				Port of the NodeBox <code>cornu</code> library — algorithm by Raph Levien,
+				Cornu-to-Bézier by Mark Meyer. Demo font:
+				<a href="https://fonts.google.com/specimen/Caveat">Caveat</a> (SIL OFL).
+				Dual-licensed MIT OR Apache-2.0.
+			</footer>
+		</div>
+
+		<script type="module">
+			import { cornuToSVGPath } from 'cornu-spline';
+			import { parseFont, segmentBounds } from 'cornu-spline/text';
+
+			const f = (n) => Math.round(n * 1e4) / 1e4;
+			const toPath = (segs) => {
+				let d = '';
+				for (const s of segs) {
+					if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
+					else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
+					else d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
+				}
+				return d.trim();
+			};
+			const fit = (svg, bounds, pad = 30) => {
+				svg.setAttribute(
+					'viewBox',
+					`${bounds.minX - pad} ${bounds.minY - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`,
+				);
+			};
+
+			let font = null;
+
+			// --- Hero ---
+			const hero = document.getElementById('hero');
+			function renderHero(animate = true) {
+				if (!font) return;
+				const text = document.getElementById('heroText').value || ' ';
+				const single = document.getElementById('heroSingle').checked;
+				const segs = font.segments(text, {
+					fontSize: 180,
+					detail: single ? 1 : 4,
+					jitter: single ? 5 : 0,
+					seed: 7,
+					singleStroke: single,
+				});
+				fit(hero, segmentBounds(segs), 40);
+				hero.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" ${
+					animate ? 'pathLength="1" class="draw"' : ''
+				}/>`;
+			}
+
+			// --- Text playground ---
+			const textStage = document.getElementById('textStage');
+			function renderText() {
+				if (!font) return;
+				const segs = font.segments('Smooth', {
+					fontSize: 170,
+					detail: +document.getElementById('detail').value,
+					jitter: +document.getElementById('jitter').value,
+					tweaks: +document.getElementById('tweaks').value,
+					singleStroke: document.getElementById('single').checked,
+				});
+				fit(textStage, segmentBounds(segs), 30);
+				textStage.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>`;
+			}
+
+			// --- Points / animation ---
+			const anim = document.getElementById('anim');
+			const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			pathEl.setAttribute('fill', 'none');
+			pathEl.setAttribute('stroke', '#111');
+			pathEl.setAttribute('stroke-width', '3');
+			pathEl.setAttribute('stroke-linecap', 'round');
+			anim.appendChild(pathEl);
+			const BASE = [
+				[90, 250],
+				[250, 80],
+				[430, 270],
+				[600, 90],
+				[770, 230],
+			];
+			let pts = BASE.slice();
+			const wobbleEl = document.getElementById('wobble');
+			let raf = 0;
+			function paintAnim() {
+				const live = wobbleEl.checked
+					? pts.map(([x, y], i) => {
+							const t = performance.now() / 1000;
+							return [x + Math.sin(t + i * 1.7) * 16, y + Math.cos(t * 0.9 + i * 2.2) * 16];
+						})
+					: pts;
+				pathEl.setAttribute('d', cornuToSVGPath(live));
+			}
+			function drawOn() {
+				paintAnim();
+				pathEl.classList.remove('draw');
+				void pathEl.getBoundingClientRect();
+				pathEl.setAttribute('pathLength', '1');
+				pathEl.classList.add('draw');
+			}
+			function wloop() {
+				if (!wobbleEl.checked) return;
+				pathEl.classList.remove('draw');
+				paintAnim();
+				raf = requestAnimationFrame(wloop);
+			}
+			anim.addEventListener('click', (e) => {
+				const r = anim.getBoundingClientRect();
+				const vb = anim.viewBox.baseVal;
+				const x = ((e.clientX - r.left) / r.width) * vb.width + vb.x;
+				const y = ((e.clientY - r.top) / r.height) * vb.height + vb.y;
+				pts.push([x, y]);
+				wobbleEl.checked ? paintAnim() : drawOn();
+			});
+			wobbleEl.addEventListener('change', () => {
+				cancelAnimationFrame(raf);
+				wobbleEl.checked ? wloop() : drawOn();
+			});
+			document.getElementById('replay').addEventListener('click', drawOn);
+
+			// wire playground controls
+			for (const id of ['heroText', 'heroSingle'])
+				document.getElementById(id).addEventListener('input', () => renderHero());
+			document.getElementById('heroReplay').addEventListener('click', () => renderHero(true));
+			for (const id of ['detail', 'jitter', 'tweaks', 'single'])
+				document.getElementById(id).addEventListener('input', renderText);
+
+			// load bundled font, then render everything
+			fetch('./font.ttf')
+				.then((r) => r.arrayBuffer())
+				.then((buf) => {
+					font = parseFont(new Uint8Array(buf));
+					renderHero();
+					renderText();
+				})
+				.catch((e) => {
+					hero.innerHTML = `<text x="20" y="40" fill="#900">Font failed to load: ${e}</text>`;
+				});
+
+			drawOn();
+		</script>
+	</body>
+</html>
