@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cornu-spline — text demo</title>
+		<style>
+			body {
+				font: 14px/1.5 system-ui, sans-serif;
+				margin: 2rem;
+				color: #111;
+				max-width: 900px;
+			}
+			.controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 1rem;
+				align-items: center;
+				margin: 1rem 0;
+			}
+			label {
+				display: flex;
+				gap: 0.4rem;
+				align-items: center;
+			}
+			svg {
+				width: 100%;
+				border: 1px solid #eee;
+				border-radius: 8px;
+			}
+			path {
+				transition: stroke 0.2s;
+			}
+		</style>
+		<!-- Map the bare specifiers to ESM CDN builds so this runs with no bundler. -->
+		<script type="importmap">
+			{
+				"imports": {
+					"opentype.js": "https://cdn.jsdelivr.net/npm/opentype.js@2/dist/opentype.mjs",
+					"cornu-spline/text": "../dist/text.js",
+					"cornu-spline": "../dist/index.js"
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<h1>cornu-spline — text</h1>
+		<p>
+			Drop a <code>.ttf</code>/<code>.otf</code> font, type something, and
+			tune the feel. Glyphs are sampled and refit as Cornu splines.
+		</p>
+
+		<div class="controls">
+			<label>Font <input type="file" id="font" accept=".ttf,.otf,.woff" /></label>
+			<label>Text <input type="text" id="text" value="Cornu" /></label>
+			<label>Detail <input type="range" id="detail" min="1" max="8" value="4" /></label>
+			<label>Jitter <input type="range" id="jitter" min="0" max="20" value="0" /></label>
+			<label>Tweaks <input type="range" id="tweaks" min="0" max="30" value="20" /></label>
+			<button id="draw">Replay draw-on</button>
+		</div>
+
+		<svg id="out" viewBox="0 0 800 300"></svg>
+
+		<script type="module">
+			import { parseFont, segmentBounds } from 'cornu-spline/text';
+
+			let font = null;
+			const svg = document.getElementById('out');
+
+			async function setFontFromBuffer(buf) {
+				font = parseFont(new Uint8Array(buf));
+				render();
+			}
+
+			function render(animate = false) {
+				if (!font) return;
+				const text = document.getElementById('text').value || ' ';
+				const opts = {
+					fontSize: 200,
+					detail: +document.getElementById('detail').value,
+					jitter: +document.getElementById('jitter').value,
+					tweaks: +document.getElementById('tweaks').value,
+				};
+				const segs = font.segments(text, opts);
+				const b = segmentBounds(segs);
+				const pad = 30;
+				svg.setAttribute(
+					'viewBox',
+					`${b.minX - pad} ${b.minY - pad} ${b.width + pad * 2} ${b.height + pad * 2}`,
+				);
+				const f = (n) => Math.round(n * 1e4) / 1e4;
+				let d = '';
+				for (const s of segs) {
+					if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
+					else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
+					else d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
+				}
+				svg.innerHTML = `<path d="${d.trim()}" fill="none" stroke="#111" stroke-width="3"
+					${animate ? 'pathLength="1" style="stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.6s ease-in-out forwards"' : ''} />
+					<style>@keyframes draw{to{stroke-dashoffset:0}}</style>`;
+			}
+
+			document.getElementById('font').addEventListener('change', async (e) => {
+				const file = e.target.files[0];
+				if (file) setFontFromBuffer(await file.arrayBuffer());
+			});
+			for (const id of ['text', 'detail', 'jitter', 'tweaks']) {
+				document.getElementById(id).addEventListener('input', () => render());
+			}
+			document.getElementById('draw').addEventListener('click', () => render(true));
+
+			// Try to auto-load a default font if served alongside this file.
+			fetch('./font.ttf')
+				.then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+				.then(setFontFromBuffer)
+				.catch(() => {});
+		</script>
+	</body>
+</html>

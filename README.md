@@ -4,15 +4,17 @@ Smooth **Cornu spline** interpolation through a set of points — the aesthetica
 
 Cornu / Euler-spiral curves (a.k.a. **Spiro**) minimize curvature variation, which is why they look so clean to the eye. This is the curve family Raph Levien designed for font and illustration tools.
 
-`cornu-spline` gives you a tiny, ergonomic API: **points in → smooth curve out**, as an SVG path string, Canvas drawing calls, or raw segments. It ships with first-class **vanilla JS** and **React** integration and has zero runtime dependencies.
+`cornu-spline` gives you a tiny, ergonomic API — **points in → smooth curve out** — as an SVG path string, Canvas drawing calls, or raw segments. It ships with first-class **vanilla JS** and **React** integration, can turn **any text in any font** into a flowing Cornu spline, and includes **draw-on and wobble animation**.
 
 ```
 npm install cornu-spline
 ```
 
+The core entry has no required dependencies. The `cornu-spline/text` (and the text parts of `cornu-spline/react`) use [`opentype.js`](https://github.com/opentypejs/opentype.js) to read fonts; it is installed automatically.
+
 ## Why this exists
 
-The only existing JS port, [`spiro`](https://www.npmjs.com/package/spiro), is a faithful but *low-level* port of libspiro: you build arrays of typed knots (`corner` / `g2` / `g4` / `open`) and implement a callback context with `moveTo`/`cubicTo` handlers. `cornu-spline` instead does the common thing in one call — give it `[x, y]` points, get a finished curve — with SVG/Canvas/React helpers included.
+The only existing JS port, [`spiro`](https://www.npmjs.com/package/spiro), is a faithful but *low-level* port of libspiro: you build arrays of typed knots (`corner` / `g2` / `g4` / `open`) and implement a callback context with `moveTo`/`cubicTo` handlers. `cornu-spline` instead does the common thing in one call — give it `[x, y]` points, get a finished curve — with SVG/Canvas/React helpers, text rendering, and animation included.
 
 ## Vanilla JS
 
@@ -27,8 +29,7 @@ const points = [
 ];
 
 // 1. SVG path string
-const d = cornuToSVGPath(points);
-document.querySelector('path').setAttribute('d', d);
+document.querySelector('path').setAttribute('d', cornuToSVGPath(points));
 
 // 2. Draw straight to a canvas
 const ctx = canvas.getContext('2d');
@@ -36,75 +37,96 @@ ctx.beginPath();
 cornuToCanvas(ctx, points, { closed: true });
 ctx.stroke();
 
-// 3. Raw drawing instructions if you want full control
+// 3. Raw drawing instructions for full control
 const segments = cornuSegments(points);
 // [{ type: 'moveto', x, y }, { type: 'curveto', x1, y1, x2, y2, x, y }, ...]
 ```
 
 Points may be tuples `[x, y]` or objects `{ x, y }`.
 
+## Text → Cornu spline
+
+Turn a string into a flowing Cornu curve by sampling a font's glyph outlines and refitting them. Lower `detail` and some `jitter` give a looser, hand-drawn feel; higher `detail` stays faithful to the letterforms.
+
+```js
+import { loadFont } from 'cornu-spline/text';
+
+const font = await loadFont('/fonts/MyFont.ttf'); // URL, ArrayBuffer, or Uint8Array
+const d = font.toSVGPath('Cornu', {
+  fontSize: 200,
+  detail: 4,   // sample density — lower = sketchier
+  jitter: 0,   // organic randomness in font units
+  tweaks: 20,  // smoothing iterations
+});
+
+const { segments, bounds } = font.render('Cornu', { fontSize: 200 });
+// `bounds` ({ minX, minY, width, height, ... }) is handy for an SVG viewBox.
+```
+
+Pure, font-independent helpers are exported too — `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`, `parseFont`.
+
 ## React
 
 ```tsx
-import { CornuPath, useCornuPath } from 'cornu-spline/react';
+import { CornuPath, CornuText, useFont } from 'cornu-spline/react';
 
 function Sketch() {
-  const points = [
-    [10, 80],
-    [80, 20],
-    [150, 120],
-    [220, 40],
-  ];
-
+  const points = [[10, 80], [80, 20], [150, 120], [220, 40]];
   return (
     <svg width={240} height={140}>
+      {/* Draws itself on over 1.5s, then gently wobbles forever */}
       <CornuPath
         points={points}
         fill="none"
         stroke="black"
         strokeWidth={2}
+        draw={{ duration: 1500 }}
+        wobble={3}
       />
     </svg>
   );
 }
 
-// Or get just the `d` string:
-function Custom({ points }) {
-  const d = useCornuPath(points, { closed: true });
-  return <path d={d} fill="rgba(0,0,0,0.1)" />;
+function Title() {
+  // <CornuText> self-sizes its SVG to the text.
+  return (
+    <CornuText
+      src="/fonts/MyFont.ttf"
+      text="Cornu"
+      fontSize={200}
+      detail={4}
+      width={600}
+      draw
+      pathProps={{ stroke: '#e0245e', strokeWidth: 3, fill: 'none' }}
+      fallback={<span>loading…</span>}
+    />
+  );
 }
 ```
 
-`<CornuPath />` forwards every standard SVG `<path>` prop (`stroke`, `fill`, `strokeDasharray`, event handlers, `ref`, …).
+`<CornuPath />` forwards every standard SVG `<path>` prop (`stroke`, `fill`, `strokeDasharray`, event handlers, `ref`, …). `<CornuText />` accepts either a `src` to load or a `font` from `useFont`/`loadFont`.
 
-> Tip: memoize the `points` array (or keep a stable reference) so the hook only recomputes when the geometry actually changes.
+> Tip: memoize the `points` array (or keep a stable reference) so hooks only recompute when the geometry actually changes.
 
-## API
+## Animation & feel
 
-### `cornuSegments(points, options?) → Segment[]`
-The core fitter. Returns drawing instructions:
-- `{ type: 'moveto', x, y }`
-- `{ type: 'lineto', x, y }` (only when `flat: true`)
-- `{ type: 'curveto', x1, y1, x2, y2, x, y }`
+| Prop / option | Where             | Effect                                                              |
+| ------------- | ----------------- | ------------------------------------------------------------------- |
+| `draw`        | `CornuPath`, `CornuText` | Stroke draws itself on. `true` or `{ duration, delay, easing, loop }`. |
+| `wobble`      | `CornuPath`       | Control points oscillate each frame. Number (amount) or `{ amount, speed }`. |
+| `tweaks`      | everywhere        | Smoothing iterations. Higher = smoother (a little more cost).       |
+| `flat`        | everywhere        | Emit a dense polyline instead of Bézier curves.                     |
+| `detail`      | text              | Curve sample density. Lower = looser / sketchier letterforms.       |
+| `jitter`+`seed` | text            | Deterministic random displacement for an organic feel.              |
+| `closed`      | core              | Treat points as a closed loop.                                      |
 
-### `cornuToSVGPath(points, options?) → string`
-Returns an SVG path `d` string. Appends `Z` when `closed`.
+The `useWobble(points, wobble)` hook is exported if you want to animate points yourself.
 
-### `cornuToCanvas(ctx, points, options?) → void`
-Issues `moveTo` / `lineTo` / `bezierCurveTo` (and `closePath` when `closed`) on any Canvas-2D-like context. Does **not** stroke or fill — you decide.
+## API summary
 
-### React: `cornu-spline/react`
-- `<CornuPath points options... {...svgPathProps} />`
-- `useCornuPath(points, options?) → string`
-- `useCornuSegments(points, options?) → Segment[]`
-
-### Options
-
-| Option   | Type      | Default | Meaning                                                        |
-| -------- | --------- | ------- | -------------------------------------------------------------- |
-| `closed` | `boolean` | `false` | Treat the points as a closed loop.                             |
-| `tweaks` | `number`  | `20`    | Smoothing iterations. Higher → smoother (and a bit more cost). |
-| `flat`   | `boolean` | `false` | Emit a dense polyline (`lineto`) instead of Bézier curves.     |
+- **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `cornuToCanvas`, types.
+- **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
+- **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`.
 
 ## Credits
 
