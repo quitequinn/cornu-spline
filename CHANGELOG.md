@@ -13,6 +13,9 @@ _Repository/tooling only — no change to the published package._
   detection and graceful fallbacks.
 - New `examples/draw-animation.html` demo (draw-on + wobble).
 - GitHub release tags and repo topics.
+- Live GitHub Pages demo (`docs/`) with a bundled SIL OFL font (Caveat).
+- `publish.yml` workflow: npm publish with build provenance via OIDC trusted publishing.
+- Upgraded dev toolchain (vitest 4, esbuild 0.28) — `npm audit`: 0 vulnerabilities.
 
 ## 0.3.0
 

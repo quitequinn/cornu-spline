@@ -4,6 +4,8 @@
 [![CI](https://github.com/QuiteQuinn/cornu-spline/actions/workflows/ci.yml/badge.svg)](https://github.com/QuiteQuinn/cornu-spline/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/cornu-spline.svg)](#license)
 
+**[Live demo →](https://quitequinn.github.io/cornu-spline/)**
+
 Smooth **Cornu spline** interpolation through a set of points — the aesthetically optimal curve that passes *through* every control point, built from Euler spirals (clothoids) and emitted as Bézier curves.
 
 ![cornu-spline drawing the word "Cornu" as a single flowing Cornu spline](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-draw.gif)
@@ -173,6 +175,15 @@ npm test          # vitest (core, text, and React via jsdom)
 npm run build     # tsup -> dual ESM/CJS + .d.ts
 npm run gif -- "/path/to/Font.ttf" "Cornu"   # rebuild the hero GIF (needs ffmpeg + rsvg-convert or macOS qlmanage)
 ```
+
+### Releasing
+
+Publishing is automated with **build provenance**: cut a GitHub Release and
+`.github/workflows/publish.yml` runs `npm publish --provenance` via OIDC
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token). One-time
+setup: on npmjs.com, add this repo + `publish.yml` as a trusted publisher for
+the package. (Alternatively, add an `NPM_TOKEN` secret and uncomment
+`NODE_AUTH_TOKEN` in the workflow.)
 
 ## Credits
 
