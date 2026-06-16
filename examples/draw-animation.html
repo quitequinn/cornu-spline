@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cornu-spline — draw-on & wobble animation</title>
+		<style>
+			body {
+				font: 14px/1.5 system-ui, sans-serif;
+				margin: 2rem;
+				color: #111;
+				max-width: 760px;
+			}
+			.stage {
+				border: 1px solid #eee;
+				border-radius: 12px;
+				background: #fff;
+			}
+			.controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 1rem;
+				align-items: center;
+				margin: 1rem 0;
+			}
+			label {
+				display: flex;
+				gap: 0.4rem;
+				align-items: center;
+			}
+			button {
+				padding: 0.4rem 0.8rem;
+				border-radius: 6px;
+				border: 1px solid #ccc;
+				background: #fafafa;
+				cursor: pointer;
+			}
+			/* Draw-on: reveal the stroke by animating its dash offset. */
+			@keyframes cornu-draw {
+				to {
+					stroke-dashoffset: 0;
+				}
+			}
+			path.draw {
+				stroke-dasharray: 1;
+				stroke-dashoffset: 1;
+				animation: cornu-draw var(--dur, 1.6s) ease-in-out forwards;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>cornu-spline — animation</h1>
+		<p>
+			Draw-on uses an SVG stroke-dash reveal (no JS per frame). Wobble
+			recomputes the spline each frame from oscillating control points.
+		</p>
+
+		<div class="controls">
+			<button id="replay">Replay draw-on</button>
+			<label><input type="checkbox" id="wobble" /> Wobble</label>
+			<label>Tweaks <input type="range" id="tweaks" min="0" max="30" value="20" /></label>
+		</div>
+
+		<svg class="stage" id="svg" width="700" height="360" viewBox="0 0 700 360">
+			<path id="p" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" />
+		</svg>
+
+		<script type="module">
+			import { cornuToSVGPath } from '../dist/index.js';
+
+			const BASE = [
+				[80, 280],
+				[200, 90],
+				[350, 300],
+				[480, 110],
+				[620, 250],
+			];
+			const path = document.getElementById('p');
+			const tweaksEl = document.getElementById('tweaks');
+			const wobbleEl = document.getElementById('wobble');
+
+			let raf = 0;
+
+			function pointsNow() {
+				if (!wobbleEl.checked) return BASE;
+				const t = performance.now() / 1000;
+				return BASE.map(([x, y], i) => [
+					x + Math.sin(t + i * 1.7) * 16,
+					y + Math.cos(t * 0.9 + i * 2.2) * 16,
+				]);
+			}
+
+			function paint() {
+				const tweaks = +tweaksEl.value;
+				path.setAttribute('d', cornuToSVGPath(pointsNow(), { tweaks }));
+			}
+
+			function startDraw() {
+				paint();
+				// Re-trigger the CSS animation by reflowing the class.
+				path.classList.remove('draw');
+				void path.getBoundingClientRect();
+				path.style.setProperty('--dur', '1.6s');
+				path.setAttribute('pathLength', '1');
+				path.classList.add('draw');
+			}
+
+			function loop() {
+				if (wobbleEl.checked) {
+					path.classList.remove('draw'); // wobble owns the stroke while on
+					paint();
+					raf = requestAnimationFrame(loop);
+				}
+			}
+
+			document.getElementById('replay').addEventListener('click', startDraw);
+			tweaksEl.addEventListener('input', () => (wobbleEl.checked ? paint() : startDraw()));
+			wobbleEl.addEventListener('change', () => {
+				cancelAnimationFrame(raf);
+				if (wobbleEl.checked) loop();
+				else startDraw();
+			});
+
+			startDraw();
+		</script>
+	</body>
+</html>

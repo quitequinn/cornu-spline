@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+_Repository/tooling only — no change to the published package._
+
+- React test coverage (jsdom + Testing Library) for `<CornuPath>`, `<CornuText>`,
+  and `useWobble`.
+- Reproducible `npm run gif` pipeline (frames → raster → GIF) with tool
+  detection and graceful fallbacks.
+- New `examples/draw-animation.html` demo (draw-on + wobble).
+- GitHub release tags and repo topics.
+
 ## 0.3.0
 
 ### Added

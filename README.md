@@ -157,6 +157,23 @@ The `useWobble(points, wobble)` hook is exported if you want to animate points y
 - **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
 - **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`.
 
+## Examples
+
+Self-contained HTML demos in [`examples/`](./examples) (open them after `npm run build`, or swap the `../dist` import for the npm CDN build):
+
+- `vanilla.html` — click to add points; live spline on a canvas.
+- `text.html` — drop a font, type, tune `detail` / `jitter` / `tweaks`, toggle `singleStroke`.
+- `draw-animation.html` — draw-on (CSS stroke-dash) and wobble (per-frame refit).
+
+## Development
+
+```sh
+npm install
+npm test          # vitest (core, text, and React via jsdom)
+npm run build     # tsup -> dual ESM/CJS + .d.ts
+npm run gif -- "/path/to/Font.ttf" "Cornu"   # rebuild the hero GIF (needs ffmpeg + rsvg-convert or macOS qlmanage)
+```
+
 ## Credits
 
 Port of the NodeBox `cornu` library.
