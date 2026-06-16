@@ -65,6 +65,9 @@
 	"dependencies": {
 		"opentype.js": "^2.0.0"
 	},
+	"overrides": {
+		"esbuild": "^0.28.1"
+	},
 	"peerDependencies": {
 		"react": ">=17"
 	},
@@ -84,6 +87,6 @@
 		"react-dom": "^18.3.1",
 		"tsup": "^8.3.0",
 		"typescript": "^5.6.0",
-		"vitest": "^2.1.0"
+		"vitest": "^4.1.9"
 	}
 }
