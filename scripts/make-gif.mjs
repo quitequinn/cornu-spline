@@ -15,7 +15,16 @@ rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 
 const font = parseFont(new Uint8Array(readFileSync(FONT)));
-const opts = { fontSize: 240, detail: 5, tweaks: 20 };
+// Match the original NodeBox direction: one flowing open spline through the
+// whole word's on-curve points, low detail, a touch of jitter.
+const opts = {
+	fontSize: 240,
+	detail: 1,
+	tweaks: 20,
+	singleStroke: true,
+	jitter: 5,
+	seed: 7,
+};
 const { path, bounds, segments } = font.render(TEXT, opts);
 
 // Per-contour lengths so the reveal runs evenly across the whole word.

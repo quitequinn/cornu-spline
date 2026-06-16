@@ -254,6 +254,11 @@ export interface CornuTextProps
 	seed?: number;
 	/** Smoothing iterations. Default 20. */
 	tweaks?: number;
+	/**
+	 * Reproduce the original NodeBox look: one flowing open spline through the
+	 * whole string instead of tidy per-glyph outlines. Pair with low `detail`.
+	 */
+	singleStroke?: boolean;
 	/** Padding (px) added around the text in the SVG viewBox. Default 8. */
 	padding?: number;
 	/** Animate the stroke drawing on. */
@@ -280,6 +285,7 @@ export function CornuText({
 	jitter = 0,
 	seed = 1,
 	tweaks,
+	singleStroke = false,
 	padding = 8,
 	draw,
 	pathProps,
@@ -292,10 +298,17 @@ export function CornuText({
 
 	const render = React.useMemo(() => {
 		if (!font) return null;
-		const options: CornuTextOptions = { fontSize, detail, jitter, seed, tweaks };
+		const options: CornuTextOptions = {
+			fontSize,
+			detail,
+			jitter,
+			seed,
+			tweaks,
+			singleStroke,
+		};
 		const segments = font.segments(text, options);
 		return { segments, bounds: segmentBounds(segments) };
-	}, [font, text, fontSize, detail, jitter, seed, tweaks]);
+	}, [font, text, fontSize, detail, jitter, seed, tweaks, singleStroke]);
 
 	if (!font || !render) return <>{fallback}</>;
 

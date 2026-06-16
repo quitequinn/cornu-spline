@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/).
 
+## 0.3.0
+
+### Added
+- Text `singleStroke` option (and `<CornuText singleStroke>`): runs one open
+  Cornu spline through the whole string's on-curve points, ignoring contour
+  boundaries — the flowing, ribbon-like reinterpretation of the original
+  NodeBox `cornu` demo. The README hero GIF now shows this signature look.
+
 ## 0.2.0
 
 ### Added

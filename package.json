@@ -1,6 +1,6 @@
 {
 	"name": "cornu-spline",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Smooth Cornu (Euler-spiral / Spiro) interpolating splines through points — vanilla JS + React, with SVG, Canvas, text rendering, and animation.",
 	"keywords": [
 		"cornu",

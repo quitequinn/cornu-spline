@@ -69,6 +69,14 @@ describe('commandsToCornuSegments', () => {
 			}
 		}
 	});
+
+	it('singleStroke fits one open spline through the whole string', () => {
+		const multi = commandsToCornuSegments(COMMANDS);
+		const single = commandsToCornuSegments(COMMANDS, { singleStroke: true });
+		// Per-contour mode has one moveto per contour; singleStroke has exactly one.
+		expect(multi.filter((s) => s.type === 'moveto').length).toBe(2);
+		expect(single.filter((s) => s.type === 'moveto').length).toBe(1);
+	});
 });
 
 describe('segmentBounds', () => {

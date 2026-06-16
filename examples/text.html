@@ -56,6 +56,7 @@
 			<label>Detail <input type="range" id="detail" min="1" max="8" value="4" /></label>
 			<label>Jitter <input type="range" id="jitter" min="0" max="20" value="0" /></label>
 			<label>Tweaks <input type="range" id="tweaks" min="0" max="30" value="20" /></label>
+			<label><input type="checkbox" id="single" /> Single stroke (original look)</label>
 			<button id="draw">Replay draw-on</button>
 		</div>
 
@@ -80,6 +81,7 @@
 					detail: +document.getElementById('detail').value,
 					jitter: +document.getElementById('jitter').value,
 					tweaks: +document.getElementById('tweaks').value,
+					singleStroke: document.getElementById('single').checked,
 				};
 				const segs = font.segments(text, opts);
 				const b = segmentBounds(segs);
@@ -104,7 +106,7 @@
 				const file = e.target.files[0];
 				if (file) setFontFromBuffer(await file.arrayBuffer());
 			});
-			for (const id of ['text', 'detail', 'jitter', 'tweaks']) {
+			for (const id of ['text', 'detail', 'jitter', 'tweaks', 'single']) {
 				document.getElementById(id).addEventListener('input', () => render());
 			}
 			document.getElementById('draw').addEventListener('click', () => render(true));

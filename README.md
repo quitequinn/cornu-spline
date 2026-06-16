@@ -6,7 +6,9 @@
 
 Smooth **Cornu spline** interpolation through a set of points — the aesthetically optimal curve that passes *through* every control point, built from Euler spirals (clothoids) and emitted as Bézier curves.
 
-![cornu-spline drawing the word "Cornu" as a smooth Cornu spline](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-draw.gif)
+![cornu-spline drawing the word "Cornu" as a single flowing Cornu spline](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-draw.gif)
+
+<sub>The hero above is the original NodeBox `cornu` direction: one open spline threaded through the word's on-curve points (`singleStroke`, `detail: 1`, a little `jitter`) — not a tidy outline trace.</sub>
 
 Cornu / Euler-spiral curves (a.k.a. **Spiro**) minimize curvature variation, which is why they look so clean to the eye. This is the curve family Raph Levien designed for font and illustration tools.
 
@@ -72,7 +74,22 @@ const d = font.toSVGPath('Cornu', {
 
 const { segments, bounds } = font.render('Cornu', { fontSize: 200 });
 // `bounds` ({ minX, minY, width, height, ... }) is handy for an SVG viewBox.
+
+// The signature, original-NodeBox flowing look: one open spline through the
+// whole word's on-curve points (the hero animation above).
+const flowing = font.toSVGPath('Cornu', {
+  fontSize: 200,
+  singleStroke: true, // ignore contour boundaries — one continuous ribbon
+  detail: 1,          // sparse = loopy and organic
+  jitter: 5,
+});
 ```
+
+Two modes, same text:
+
+| `singleStroke: false` (default)        | `singleStroke: true`                      |
+| -------------------------------------- | ----------------------------------------- |
+| Tidy per-glyph outlines — legible text | One flowing ribbon — the original look |
 
 Pure, font-independent helpers are exported too — `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`, `parseFont`.
 
@@ -129,6 +146,7 @@ function Title() {
 | `flat`        | everywhere        | Emit a dense polyline instead of Bézier curves.                     |
 | `detail`      | text              | Curve sample density. Lower = looser / sketchier letterforms.       |
 | `jitter`+`seed` | text            | Deterministic random displacement for an organic feel.              |
+| `singleStroke` | text             | One flowing open spline through the whole word (original NodeBox look). |
 | `closed`      | core              | Treat points as a closed loop.                                      |
 
 The `useWobble(points, wobble)` hook is exported if you want to animate points yourself.

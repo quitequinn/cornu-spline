@@ -55,6 +55,16 @@ export interface CornuTextOptions extends Pick<CornuOptions, 'tweaks' | 'flat'> 
 	jitter?: number;
 	/** Seed for deterministic jitter. Default 1. */
 	seed?: number;
+	/**
+	 * Reproduce the original NodeBox `cornu` demo: instead of fitting each
+	 * glyph contour as its own closed outline, run a single *open* Cornu
+	 * spline through every on-curve point of the whole string (contour
+	 * boundaries ignored). The result is a flowing, ribbon-like
+	 * reinterpretation rather than tidy letterforms — this is the signature
+	 * Cornu look. Pair with a low `detail` (1–2) and a little `jitter`.
+	 * Default false.
+	 */
+	singleStroke?: boolean;
 	/** opentype.js render options (kerning, ligatures, ...). */
 	fontOptions?: opentype.RenderOptions;
 }
@@ -194,20 +204,35 @@ export function commandsToCornuSegments(
 	commands: GlyphCommand[],
 	options: CornuTextOptions = {},
 ): Segment[] {
-	const { detail = 3, jitter = 0, seed = 1, tweaks, flat } = options;
+	const { detail = 3, jitter = 0, seed = 1, tweaks, flat, singleStroke = false } =
+		options;
 	const rng = makeRng(seed);
 	const contours = commandsToContours(commands, detail);
+
+	const jit = (pts: [number, number][]): [number, number][] =>
+		jitter > 0
+			? pts.map(([x, y]) => [
+					x + (rng() * 2 - 1) * jitter,
+					y + (rng() * 2 - 1) * jitter,
+				])
+			: pts;
+
+	// Original NodeBox behaviour: one open spline through every on-curve point
+	// of the whole string, contour boundaries ignored.
+	if (singleStroke) {
+		const pts = jit(contours.flatMap((c) => c.points));
+		return cornuSegments(pts, { closed: false, tweaks, flat });
+	}
+
+	// Default: fit each glyph contour as its own (closed) outline.
 	const segments: Segment[] = [];
 	for (const contour of contours) {
-		let pts = contour.points;
-		if (jitter > 0) {
-			pts = pts.map(([x, y]) => [
-				x + (rng() * 2 - 1) * jitter,
-				y + (rng() * 2 - 1) * jitter,
-			]);
-		}
 		segments.push(
-			...cornuSegments(pts, { closed: contour.closed, tweaks, flat }),
+			...cornuSegments(jit(contour.points), {
+				closed: contour.closed,
+				tweaks,
+				flat,
+			}),
 		);
 	}
 	return segments;
