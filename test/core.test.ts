@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { cornuSegments, cornuToSVGPath, cornuToCanvas } from '../src/index';
+import {
+	cornuSegments,
+	cornuToSVGPath,
+	cornuToCanvas,
+	cornuToPath2D,
+	cornuLength,
+} from '../src/index';
 
 const SQUARE: [number, number][] = [
 	[0, 0],
@@ -68,6 +74,30 @@ describe('cornuToSVGPath', () => {
 
 	it('returns empty string for too few points', () => {
 		expect(cornuToSVGPath([[0, 0]])).toBe('');
+	});
+});
+
+describe('cornuLength', () => {
+	it('returns a positive length and is zero for too few points', () => {
+		expect(cornuLength(SQUARE)).toBeGreaterThan(0);
+		expect(cornuLength([[0, 0]])).toBe(0);
+	});
+
+	it('grows when the closing segment is added', () => {
+		const open = cornuLength(SQUARE);
+		const closed = cornuLength(SQUARE, { closed: true });
+		expect(closed).toBeGreaterThan(open);
+	});
+});
+
+describe('cornuToPath2D', () => {
+	it('throws when Path2D is unavailable (node)', () => {
+		// jsdom/node has no Path2D by default.
+		if (typeof Path2D === 'undefined') {
+			expect(() => cornuToPath2D(SQUARE)).toThrow(/Path2D/);
+		} else {
+			expect(cornuToPath2D(SQUARE)).toBeInstanceOf(Path2D);
+		}
 	});
 });
 

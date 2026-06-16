@@ -527,3 +527,67 @@ export function cornuToCanvas(
 	}
 	if (options.closed && ctx.closePath) ctx.closePath();
 }
+
+/**
+ * Fit a Cornu spline and return a `Path2D` (browser/Canvas). Handy for
+ * `ctx.stroke(path)` / `ctx.fill(path)` and hit-testing. Throws if `Path2D`
+ * is unavailable (e.g. Node without a canvas polyfill).
+ */
+export function cornuToPath2D(
+	points: InputPoint[],
+	options: CornuOptions = {},
+): Path2D {
+	if (typeof Path2D === 'undefined') {
+		throw new Error('Path2D is not available in this environment');
+	}
+	const path = new Path2D();
+	cornuToCanvas(path, points, options);
+	return path;
+}
+
+/**
+ * Approximate arc length of the fitted spline (sum of flattened chord
+ * lengths). Useful for stroke-dash animations driven in user units.
+ */
+export function cornuLength(
+	points: InputPoint[],
+	options: CornuOptions = {},
+): number {
+	const segs = cornuSegments(points, options);
+	let length = 0;
+	let px = 0;
+	let py = 0;
+	// Flatten each curveto with a few samples for a stable estimate.
+	const SAMPLES = 16;
+	for (const s of segs) {
+		if (s.type === 'moveto') {
+			px = s.x;
+			py = s.y;
+		} else if (s.type === 'lineto') {
+			length += Math.hypot(s.x - px, s.y - py);
+			px = s.x;
+			py = s.y;
+		} else {
+			const x0 = px;
+			const y0 = py;
+			let lx = x0;
+			let ly = y0;
+			for (let i = 1; i <= SAMPLES; i++) {
+				const t = i / SAMPLES;
+				const u = 1 - t;
+				const a = u * u * u;
+				const b = 3 * u * u * t;
+				const c = 3 * u * t * t;
+				const d = t * t * t;
+				const x = a * x0 + b * s.x1 + c * s.x2 + d * s.x;
+				const y = a * y0 + b * s.y1 + c * s.y2 + d * s.y;
+				length += Math.hypot(x - lx, y - ly);
+				lx = x;
+				ly = y;
+			}
+			px = s.x;
+			py = s.y;
+		}
+	}
+	return length;
+}

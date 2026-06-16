@@ -6,4 +6,10 @@ export type {
 	CornuOptions,
 	Segment,
 } from './core';
-export { cornuSegments, cornuToSVGPath, cornuToCanvas } from './core';
+export {
+	cornuSegments,
+	cornuToSVGPath,
+	cornuToCanvas,
+	cornuToPath2D,
+	cornuLength,
+} from './core';

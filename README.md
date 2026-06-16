@@ -1,6 +1,12 @@
 # cornu-spline
 
+[![npm](https://img.shields.io/npm/v/cornu-spline.svg)](https://www.npmjs.com/package/cornu-spline)
+[![CI](https://github.com/QuiteQuinn/cornu-spline/actions/workflows/ci.yml/badge.svg)](https://github.com/QuiteQuinn/cornu-spline/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/cornu-spline.svg)](#license)
+
 Smooth **Cornu spline** interpolation through a set of points — the aesthetically optimal curve that passes *through* every control point, built from Euler spirals (clothoids) and emitted as Bézier curves.
+
+![cornu-spline drawing the word "Cornu" as a smooth Cornu spline](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-draw.gif)
 
 Cornu / Euler-spiral curves (a.k.a. **Spiro**) minimize curvature variation, which is why they look so clean to the eye. This is the curve family Raph Levien designed for font and illustration tools.
 
@@ -36,6 +42,11 @@ const ctx = canvas.getContext('2d');
 ctx.beginPath();
 cornuToCanvas(ctx, points, { closed: true });
 ctx.stroke();
+
+// ...or get a Path2D for ctx.stroke(path) / hit-testing
+import { cornuToPath2D, cornuLength } from 'cornu-spline';
+ctx.stroke(cornuToPath2D(points));
+const len = cornuLength(points); // approximate arc length
 
 // 3. Raw drawing instructions for full control
 const segments = cornuSegments(points);
@@ -124,7 +135,7 @@ The `useWobble(points, wobble)` hook is exported if you want to animate points y
 
 ## API summary
 
-- **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `cornuToCanvas`, types.
+- **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `cornuToCanvas`, `cornuToPath2D`, `cornuLength`, types.
 - **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
 - **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`.
 
@@ -136,4 +147,10 @@ Port of the NodeBox `cornu` library.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+Licensed under your choice of either:
+
+- MIT license ([LICENSE-MIT](./LICENSE-MIT)), or
+- Apache License 2.0 ([LICENSE-APACHE](./LICENSE-APACHE))
+
+This mirrors the licensing of Raph Levien's original Spiro work, from which the
+algorithm derives. See [NOTICE](./NOTICE) for attribution details.

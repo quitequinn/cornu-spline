@@ -1,0 +1,16 @@
+cornu-spline
+Copyright (c) 2026 QuiteQuinn
+
+This product is a TypeScript port of the NodeBox "cornu" library.
+
+The underlying Cornu / Euler-spiral (Spiro) curve algorithm is the work of
+Raph Levien, distributed under the Apache License 2.0:
+  https://github.com/raphlinus/spiro
+  http://www.levien.com/spiro/
+
+The Cornu-to-Bezier conversion is the work of Mark Meyer, contributed to the
+NodeBox cornu library.
+
+Portions of this software are therefore derived from Apache-2.0 licensed work
+by Raph Levien. This package is offered under your choice of the MIT License
+(LICENSE-MIT) or the Apache License 2.0 (LICENSE-APACHE).
