@@ -29,7 +29,7 @@ const { path, bounds, segments } = font.render(TEXT, opts);
 
 // Per-contour lengths so the reveal runs evenly across the whole word.
 const total = cornuLengthFromSegments(segments);
-const pad = 50;
+const pad = 110;
 const vb = `${bounds.minX - pad} ${bounds.minY - pad} ${bounds.width + pad * 2} ${
 	bounds.height + pad * 2
 }`;
@@ -43,8 +43,8 @@ const frame = (i) => {
 	const p = i < FRAMES ? ease(i / (FRAMES - 1)) : 1;
 	const offset = total * (1 - p);
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="${vb}">
-  <rect x="${bounds.minX - pad}" y="${bounds.minY - pad}" width="${W}" height="${H}" fill="#0d0d12"/>
-  <path d="${path}" fill="none" stroke="#7cf" stroke-width="6" stroke-linecap="round"
+  <rect x="${bounds.minX - pad}" y="${bounds.minY - pad}" width="${W}" height="${H}" fill="#ffffff"/>
+  <path d="${path}" fill="none" stroke="#111111" stroke-width="3.5" stroke-linecap="round"
         stroke-dasharray="${total}" stroke-dashoffset="${offset}"/>
 </svg>`;
 	writeFileSync(`${DIR}/frame_${String(i).padStart(3, '0')}.svg`, svg);
@@ -53,6 +53,7 @@ const frame = (i) => {
 const n = FRAMES + HOLD;
 for (let i = 0; i < n; i++) frame(i);
 console.log(`Wrote ${n} frames to ${DIR} (${W}x${H}, length ${Math.round(total)})`);
+console.log(`SIZE ${W} ${H}`);
 
 // Sum approximate arc length across already-fitted segments.
 function cornuLengthFromSegments(segs) {
