@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cornu-spline — vanilla demo</title>
+		<style>
+			body {
+				font: 14px/1.5 system-ui, sans-serif;
+				margin: 2rem;
+				color: #111;
+			}
+			canvas {
+				border: 1px solid #ddd;
+				border-radius: 8px;
+				touch-action: none;
+			}
+			p {
+				color: #555;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>cornu-spline</h1>
+		<p>Click to add points. The smooth Cornu spline updates live.</p>
+		<canvas id="c" width="600" height="400"></canvas>
+
+		<!-- Built from ../src via your bundler, or swap for the npm CDN build. -->
+		<script type="module">
+			import { cornuToCanvas } from '../dist/index.js';
+
+			const canvas = document.getElementById('c');
+			const ctx = canvas.getContext('2d');
+			const points = [
+				[80, 300],
+				[200, 100],
+				[400, 320],
+				[520, 120],
+			];
+
+			function render() {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+				// The spline
+				ctx.beginPath();
+				cornuToCanvas(ctx, points);
+				ctx.strokeStyle = '#111';
+				ctx.lineWidth = 2;
+				ctx.stroke();
+
+				// The control points
+				ctx.fillStyle = '#e0245e';
+				for (const [x, y] of points) {
+					ctx.beginPath();
+					ctx.arc(x, y, 4, 0, Math.PI * 2);
+					ctx.fill();
+				}
+			}
+
+			canvas.addEventListener('click', (e) => {
+				const r = canvas.getBoundingClientRect();
+				points.push([e.clientX - r.left, e.clientY - r.top]);
+				render();
+			});
+
+			render();
+		</script>
+	</body>
+</html>
