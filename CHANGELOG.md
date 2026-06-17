@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/).
 
+## 0.4.1
+
+### Docs
+- README visuals for the core concept (points → curve), the two text modes
+  (outline vs single-stroke), multi-line paragraphs, and the wobble animation —
+  all rendered exactly (via `@resvg/resvg-js`) and contained in a framed box.
+- Hero GIF rebuilt to be fully contained (no edge clipping). Reproducible via
+  `npm run visuals`.
+
 ## 0.4.0
 
 ### Tooling

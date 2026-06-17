@@ -28,6 +28,8 @@ The only existing JS port, [`spiro`](https://www.npmjs.com/package/spiro), is a 
 
 ## Vanilla JS
 
+![A smooth Cornu spline passing through five control points](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-points.png)
+
 ```js
 import { cornuToSVGPath, cornuSegments, cornuToCanvas } from 'cornu-spline';
 
@@ -87,7 +89,9 @@ const flowing = font.toSVGPath('Cornu', {
 });
 ```
 
-Two modes, same text:
+Two modes, same text — tidy per-glyph outlines (top) vs one flowing single stroke (bottom):
+
+![The word "Cornu" rendered as outlines and as a single flowing stroke](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-modes.png)
 
 | `singleStroke: false` (default)        | `singleStroke: true`                      |
 | -------------------------------------- | ----------------------------------------- |
@@ -154,6 +158,8 @@ function Title() {
 > Tip: memoize the `points` array (or keep a stable reference) so hooks only recompute when the geometry actually changes.
 
 ## Animation & feel
+
+![A Cornu spline wobbling as its control points oscillate](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-wobble.gif)
 
 | Prop / option | Where             | Effect                                                              |
 | ------------- | ----------------- | ------------------------------------------------------------------- |
