@@ -178,12 +178,11 @@ npm run gif -- "/path/to/Font.ttf" "Cornu"   # rebuild the hero GIF (needs ffmpe
 
 ### Releasing
 
-Publishing is automated with **build provenance**: cut a GitHub Release and
-`.github/workflows/publish.yml` runs `npm publish --provenance` via OIDC
-[trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token). One-time
-setup: on npmjs.com, add this repo + `publish.yml` as a trusted publisher for
-the package. (Alternatively, add an `NPM_TOKEN` secret and uncomment
-`NODE_AUTH_TOKEN` in the workflow.)
+```sh
+npm version <patch|minor|major>   # bump + git tag
+npm publish                       # prepublishOnly builds first
+git push --follow-tags
+```
 
 ## Credits
 
