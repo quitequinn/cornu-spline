@@ -79,6 +79,31 @@ describe('commandsToCornuSegments', () => {
 	});
 });
 
+describe('layoutLines', () => {
+	// A tiny fake font: every char is 10 units wide at the given size.
+	const fakeFont = {
+		getAdvanceWidth: (t: string) => t.length * 10,
+	} as unknown as import('opentype.js').Font;
+
+	it('splits on newlines when no maxWidth', async () => {
+		const { layoutLines } = await import('../src/text');
+		expect(layoutLines(fakeFont, 'a\nb\nc', 72)).toEqual(['a', 'b', 'c']);
+	});
+
+	it('word-wraps to maxWidth', async () => {
+		const { layoutLines } = await import('../src/text');
+		// each word 3 chars (30) + space; maxWidth 70 fits two words ("foo bar" = 70)
+		const lines = layoutLines(fakeFont, 'foo bar baz qux', 72, 70);
+		expect(lines.length).toBeGreaterThan(1);
+		expect(lines.join(' ')).toBe('foo bar baz qux');
+	});
+
+	it('preserves blank lines', async () => {
+		const { layoutLines } = await import('../src/text');
+		expect(layoutLines(fakeFont, 'a\n\nb', 72)).toEqual(['a', '', 'b']);
+	});
+});
+
 describe('segmentBounds', () => {
 	it('computes a bounding box that contains the geometry', () => {
 		const segs = commandsToCornuSegments(COMMANDS);

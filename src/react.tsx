@@ -9,13 +9,7 @@ import {
 	type CornuOptions,
 	type Segment,
 } from './core';
-import {
-	CornuFont,
-	loadFont,
-	segmentBounds,
-	type FontSource,
-	type CornuTextOptions,
-} from './text';
+import { CornuFont, loadFont, type FontSource } from './text';
 
 // --- Plain spline hooks -------------------------------------------------
 
@@ -259,6 +253,12 @@ export interface CornuTextProps
 	 * whole string instead of tidy per-glyph outlines. Pair with low `detail`.
 	 */
 	singleStroke?: boolean;
+	/** Max line width (px) for word wrapping. Enables multi-line layout. */
+	maxWidth?: number;
+	/** Line height as a multiple of fontSize (multi-line). Default 1.3. */
+	lineHeight?: number;
+	/** Horizontal alignment for wrapped lines. Default "left". */
+	align?: 'left' | 'center' | 'right';
 	/** Padding (px) added around the text in the SVG viewBox. Default 8. */
 	padding?: number;
 	/** Animate the stroke drawing on. */
@@ -286,6 +286,9 @@ export function CornuText({
 	seed = 1,
 	tweaks,
 	singleStroke = false,
+	maxWidth,
+	lineHeight,
+	align,
 	padding = 8,
 	draw,
 	pathProps,
@@ -298,17 +301,23 @@ export function CornuText({
 
 	const render = React.useMemo(() => {
 		if (!font) return null;
-		const options: CornuTextOptions = {
+		// renderParagraph handles single- and multi-line uniformly.
+		const { segments, bounds } = font.renderParagraph(text, {
 			fontSize,
 			detail,
 			jitter,
 			seed,
 			tweaks,
 			singleStroke,
-		};
-		const segments = font.segments(text, options);
-		return { segments, bounds: segmentBounds(segments) };
-	}, [font, text, fontSize, detail, jitter, seed, tweaks, singleStroke]);
+			maxWidth,
+			lineHeight,
+			align,
+		});
+		return { segments, bounds };
+	}, [
+		font, text, fontSize, detail, jitter, seed, tweaks, singleStroke,
+		maxWidth, lineHeight, align,
+	]);
 
 	if (!font || !render) return <>{fallback}</>;
 

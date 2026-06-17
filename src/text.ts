@@ -69,6 +69,16 @@ export interface CornuTextOptions extends Pick<CornuOptions, 'tweaks' | 'flat'> 
 	fontOptions?: opentype.RenderOptions;
 }
 
+/** Options for laying out multi-line text / paragraphs. */
+export interface CornuParagraphOptions extends CornuTextOptions {
+	/** Line height as a multiple of `fontSize`. Default 1.3. */
+	lineHeight?: number;
+	/** Max line width (px) for word wrapping. Omit to break only on "\n". */
+	maxWidth?: number;
+	/** Horizontal alignment (needs `maxWidth` for center/right). Default "left". */
+	align?: 'left' | 'center' | 'right';
+}
+
 // Small deterministic PRNG (mulberry32) so jitter is reproducible per seed.
 function makeRng(seed: number): () => number {
 	let a = seed >>> 0 || 1;
@@ -289,6 +299,41 @@ function segmentsToPath(segments: Segment[]): string {
 	return d.trim();
 }
 
+/**
+ * Break text into laid-out lines: split on "\n", then greedily word-wrap each
+ * paragraph to `maxWidth` (measured with the font). Blank lines are preserved.
+ */
+export function layoutLines(
+	font: opentype.Font,
+	text: string,
+	fontSize: number,
+	maxWidth?: number,
+	fontOptions?: opentype.RenderOptions,
+): string[] {
+	const paragraphs = text.split('\n');
+	if (!maxWidth) return paragraphs;
+	const lines: string[] = [];
+	for (const para of paragraphs) {
+		const words = para.split(/\s+/).filter(Boolean);
+		if (words.length === 0) {
+			lines.push('');
+			continue;
+		}
+		let line = words[0];
+		for (let i = 1; i < words.length; i++) {
+			const test = `${line} ${words[i]}`;
+			if (font.getAdvanceWidth(test, fontSize, fontOptions) <= maxWidth) {
+				line = test;
+			} else {
+				lines.push(line);
+				line = words[i];
+			}
+		}
+		lines.push(line);
+	}
+	return lines;
+}
+
 /** A loaded font ready to produce Cornu splines from text. */
 export class CornuFont {
 	/** The underlying opentype.js Font. */
@@ -327,6 +372,57 @@ export class CornuFont {
 			segments,
 			path: segmentsToPath(segments),
 			bounds: segmentBounds(segments),
+		};
+	}
+
+	/**
+	 * Cornu spline segments for multi-line text: splits on "\n" and optionally
+	 * word-wraps to `maxWidth`, stacking lines by `lineHeight`. Each line is
+	 * fitted independently (so `singleStroke` flows per line, not across lines).
+	 */
+	paragraphSegments(text: string, options: CornuParagraphOptions = {}): Segment[] {
+		const fontSize = options.fontSize ?? 72;
+		const lineHeight = (options.lineHeight ?? 1.3) * fontSize;
+		const x0 = options.x ?? 0;
+		const y0 = options.y ?? fontSize;
+		const align = options.align ?? 'left';
+		const lines = layoutLines(
+			this.font,
+			text,
+			fontSize,
+			options.maxWidth,
+			options.fontOptions,
+		);
+		const out: Segment[] = [];
+		lines.forEach((line, i) => {
+			if (!line) return; // blank line still advances the baseline below
+			let x = x0;
+			if (options.maxWidth && align !== 'left') {
+				const w = this.font.getAdvanceWidth(line, fontSize, options.fontOptions);
+				x = x0 + (options.maxWidth - w) * (align === 'center' ? 0.5 : 1);
+			}
+			out.push(...this.segments(line, { ...options, x, y: y0 + i * lineHeight }));
+		});
+		return out;
+	}
+
+	/** Multi-line segments plus path and bounding box. */
+	renderParagraph(
+		text: string,
+		options: CornuParagraphOptions = {},
+	): { segments: Segment[]; path: string; bounds: Bounds; lines: string[] } {
+		const segments = this.paragraphSegments(text, options);
+		return {
+			segments,
+			path: segmentsToPath(segments),
+			bounds: segmentBounds(segments),
+			lines: layoutLines(
+				this.font,
+				text,
+				options.fontSize ?? 72,
+				options.maxWidth,
+				options.fontOptions,
+			),
 		};
 	}
 }

@@ -95,6 +95,19 @@ Two modes, same text:
 
 Pure, font-independent helpers are exported too — `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`, `parseFont`.
 
+### Multi-line text & paragraphs
+
+`paragraphSegments` / `renderParagraph` split on `\n` and (optionally) word-wrap to a `maxWidth`, stacking lines by `lineHeight`:
+
+```js
+const { path, bounds, lines } = font.renderParagraph(
+  'The quick brown fox jumps over the lazy dog.',
+  { fontSize: 64, maxWidth: 680, lineHeight: 1.35, align: 'left' },
+);
+```
+
+Each line is fitted independently, so `singleStroke` flows per line. Use `layoutLines(font, text, fontSize, maxWidth)` if you just want the wrapped strings.
+
 ## React
 
 ```tsx
@@ -134,7 +147,7 @@ function Title() {
 }
 ```
 
-`<CornuPath />` forwards every standard SVG `<path>` prop (`stroke`, `fill`, `strokeDasharray`, event handlers, `ref`, …). `<CornuText />` accepts either a `src` to load or a `font` from `useFont`/`loadFont`.
+`<CornuPath />` forwards every standard SVG `<path>` prop (`stroke`, `fill`, `strokeDasharray`, event handlers, `ref`, …). `<CornuText />` accepts either a `src` to load or a `font` from `useFont`/`loadFont`, and supports multi-line layout via `maxWidth` / `lineHeight` / `align` (and `\n`).
 
 > Tip: memoize the `points` array (or keep a stable reference) so hooks only recompute when the geometry actually changes.
 
@@ -156,7 +169,7 @@ The `useWobble(points, wobble)` hook is exported if you want to animate points y
 ## API summary
 
 - **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `cornuToCanvas`, `cornuToPath2D`, `cornuLength`, types.
-- **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
+- **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont` (`.segments`, `.toSVGPath`, `.render`, `.paragraphSegments`, `.renderParagraph`), `layoutLines`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
 - **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`.
 
 ## Examples

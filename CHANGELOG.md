@@ -3,10 +3,9 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.4.0
 
-_Repository/tooling only — no change to the published package._
-
+### Tooling
 - React test coverage (jsdom + Testing Library) for `<CornuPath>`, `<CornuText>`,
   and `useWobble`.
 - Reproducible `npm run gif` pipeline (frames → raster → GIF) with tool
@@ -15,6 +14,15 @@ _Repository/tooling only — no change to the published package._
 - GitHub release tags and repo topics.
 - Live GitHub Pages demo (`docs/`) with a bundled SIL OFL font (Caveat).
 - Upgraded dev toolchain (vitest 4, esbuild 0.28) — `npm audit`: 0 vulnerabilities.
+
+### Added
+- Multi-line text / paragraphs: `CornuFont.paragraphSegments` and
+  `renderParagraph` split on `\n` and optionally word-wrap to `maxWidth`,
+  stacking lines by `lineHeight` with `align` left/center/right. Exposed the
+  `layoutLines` helper.
+- React `<CornuText>` gains `maxWidth`, `lineHeight`, and `align` props for
+  multi-line layout.
+- `examples/paragraph.html` and a paragraph section in the live demo.
 
 ## 0.3.0
 

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cornu-spline — paragraph / multi-line text</title>
+		<style>
+			body {
+				font: 14px/1.5 system-ui, sans-serif;
+				margin: 2rem;
+				color: #111;
+				max-width: 820px;
+			}
+			.controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 1rem;
+				align-items: center;
+				margin: 1rem 0;
+			}
+			label {
+				display: flex;
+				gap: 0.4rem;
+				align-items: center;
+			}
+			textarea {
+				width: 100%;
+				min-height: 5rem;
+				font: inherit;
+				padding: 0.5rem;
+				border: 1px solid #ddd;
+				border-radius: 8px;
+			}
+			svg {
+				width: 100%;
+				border: 1px solid #eee;
+				border-radius: 8px;
+				margin-top: 1rem;
+			}
+		</style>
+		<script type="importmap">
+			{
+				"imports": {
+					"opentype.js": "https://cdn.jsdelivr.net/npm/opentype.js@2/dist/opentype.mjs",
+					"cornu-spline/text": "../dist/text.js"
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<h1>cornu-spline — paragraph</h1>
+		<p>Drop a font, type a paragraph, and watch it wrap and flow as Cornu splines.</p>
+
+		<div class="controls">
+			<label>Font <input type="file" id="font" accept=".ttf,.otf,.woff" /></label>
+			<label>Max width <input type="range" id="maxw" min="300" max="900" value="680" /></label>
+			<label>Line height <input type="range" id="lh" min="100" max="200" value="135" /></label>
+			<label>Detail <input type="range" id="detail" min="1" max="8" value="4" /></label>
+			<label>Align
+				<select id="align">
+					<option value="left">left</option>
+					<option value="center">center</option>
+					<option value="right">right</option>
+				</select>
+			</label>
+			<label><input type="checkbox" id="single" /> Single stroke</label>
+		</div>
+
+		<textarea id="text">
+The quick brown fox jumps over the lazy dog. Cornu splines flow smoothly through every control point, which is why they read so cleanly to the eye.</textarea>
+
+		<svg id="out" viewBox="0 0 800 400"></svg>
+
+		<script type="module">
+			import { parseFont, segmentBounds } from 'cornu-spline/text';
+
+			let font = null;
+			const svg = document.getElementById('out');
+			const $ = (id) => document.getElementById(id);
+
+			function render() {
+				if (!font) return;
+				const opts = {
+					fontSize: 64,
+					detail: +$('detail').value,
+					maxWidth: +$('maxw').value,
+					lineHeight: +$('lh').value / 100,
+					align: $('align').value,
+					singleStroke: $('single').checked,
+				};
+				const { segments } = font.renderParagraph($('text').value, opts);
+				const b = segmentBounds(segments);
+				const pad = 24;
+				svg.setAttribute(
+					'viewBox',
+					`${b.minX - pad} ${b.minY - pad} ${b.width + pad * 2} ${b.height + pad * 2}`,
+				);
+				const f = (n) => Math.round(n * 1e4) / 1e4;
+				let d = '';
+				for (const s of segments) {
+					if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
+					else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
+					else d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
+				}
+				svg.innerHTML = `<path d="${d.trim()}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round"/>`;
+			}
+
+			$('font').addEventListener('change', async (e) => {
+				const file = e.target.files[0];
+				if (file) {
+					font = parseFont(new Uint8Array(await file.arrayBuffer()));
+					render();
+				}
+			});
+			for (const id of ['text', 'maxw', 'lh', 'detail', 'align', 'single'])
+				$(id).addEventListener('input', render);
+
+			fetch('../docs/font.ttf')
+				.then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+				.then((b) => {
+					font = parseFont(new Uint8Array(b));
+					render();
+				})
+				.catch(() => {});
+		</script>
+	</body>
+</html>

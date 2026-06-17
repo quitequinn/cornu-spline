@@ -112,8 +112,8 @@
 		<script type="importmap">
 			{
 				"imports": {
-					"cornu-spline": "https://cdn.jsdelivr.net/npm/cornu-spline@0.3.0/dist/index.js",
-					"cornu-spline/text": "https://cdn.jsdelivr.net/npm/cornu-spline@0.3.0/dist/text.js",
+					"cornu-spline": "https://cdn.jsdelivr.net/npm/cornu-spline@0.4.0/dist/index.js",
+					"cornu-spline/text": "https://cdn.jsdelivr.net/npm/cornu-spline@0.4.0/dist/text.js",
 					"opentype.js": "https://cdn.jsdelivr.net/npm/opentype.js@2/dist/opentype.mjs"
 				}
 			}
@@ -155,6 +155,23 @@
 					<label>Jitter <input type="range" id="jitter" min="0" max="20" value="0" /></label>
 					<label>Tweaks <input type="range" id="tweaks" min="0" max="30" value="20" /></label>
 					<label><input type="checkbox" id="single" /> Single stroke</label>
+				</div>
+			</section>
+
+			<!-- Paragraph / multi-line -->
+			<section>
+				<h2>Paragraph (multi-line &amp; word wrap)</h2>
+				<svg class="stage" id="paraStage" height="300" viewBox="0 0 860 300"></svg>
+				<div class="controls">
+					<label>Max width <input type="range" id="paraW" min="300" max="820" value="700" /></label>
+					<label>Align
+						<select id="paraAlign">
+							<option value="left">left</option>
+							<option value="center">center</option>
+							<option value="right">right</option>
+						</select>
+					</label>
+					<label>Detail <input type="range" id="paraDetail" min="1" max="8" value="4" /></label>
 				</div>
 			</section>
 
@@ -234,6 +251,23 @@
 				textStage.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>`;
 			}
 
+			// --- Paragraph ---
+			const paraStage = document.getElementById('paraStage');
+			const PARA =
+				'The quick brown fox jumps over the lazy dog. Cornu splines flow smoothly through every control point, which is why they read so cleanly to the eye.';
+			function renderPara() {
+				if (!font) return;
+				const { segments, bounds } = font.renderParagraph(PARA, {
+					fontSize: 56,
+					detail: +document.getElementById('paraDetail').value,
+					maxWidth: +document.getElementById('paraW').value,
+					lineHeight: 1.35,
+					align: document.getElementById('paraAlign').value,
+				});
+				fit(paraStage, bounds, 24);
+				paraStage.innerHTML = `<path d="${toPath(segments)}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round"/>`;
+			}
+
 			// --- Points / animation ---
 			const anim = document.getElementById('anim');
 			const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -294,6 +328,8 @@
 			document.getElementById('heroReplay').addEventListener('click', () => renderHero(true));
 			for (const id of ['detail', 'jitter', 'tweaks', 'single'])
 				document.getElementById(id).addEventListener('input', renderText);
+			for (const id of ['paraW', 'paraAlign', 'paraDetail'])
+				document.getElementById(id).addEventListener('input', renderPara);
 
 			// load bundled font, then render everything
 			fetch('./font.ttf')
@@ -302,6 +338,7 @@
 					font = parseFont(new Uint8Array(buf));
 					renderHero();
 					renderText();
+					renderPara();
 				})
 				.catch((e) => {
 					hero.innerHTML = `<text x="20" y="40" fill="#900">Font failed to load: ${e}</text>`;
