@@ -3,6 +3,28 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/).
 
+## 0.5.0
+
+Hardening pass from a multi-engineer panel review (17 findings, all addressed).
+
+### Added
+- `segmentsToSVGPath(segments, closed?)` — serialize fitted segments without
+  re-fitting (shared by core/text/react).
+- `usePrefersReducedMotion()` hook; draw-on and wobble now respect reduced motion.
+- `<CornuText>` is accessible by default (`role="img"`, `aria-label`, `<title>`)
+  and gains `x` / `y` / `flat` / `fontOptions` props.
+
+### Changed / Fixed
+- `<CornuPath wobble>` animates imperatively — no full spline re-fit per React
+  render. Draw-on re-triggers when geometry changes.
+- O(n) duplicate-point dedupe (was O(n²)); guards against non-finite inputs.
+- SVG number formatting never emits NaN/Infinity/exponential tokens.
+- `renderParagraph` computes layout once; `<CornuText>` reuses its path.
+- opentype `parse()` resolved lazily with a clear error; published source maps
+  resolve (ship `src`); README corrections; baseline JSDoc fixed.
+- Tests: 32 → 48 (interior interpolation, paragraph/align/closed/2-point/
+  duplicate/length/finite, accessibility, NaN-dedupe regression).
+
 ## 0.4.1
 
 ### Docs
