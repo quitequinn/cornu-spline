@@ -1,16 +1,17 @@
 // Reproducible hero-GIF builder: text -> Cornu spline -> SVG frames (draw-on
-// reveal) -> rasterize -> assemble GIF. Runs the whole pipeline and degrades
-// gracefully if the external raster/encode tools are missing.
+// reveal) -> rasterize (exact size, no clipping) -> assemble GIF.
 //
 // Usage:
 //   node scripts/make-gif.mjs [fontPath] [text] [outGif]
 //   npm run gif -- "/path/to/Font.ttf" "Cornu" assets/cornu-draw.gif
 //
-// Requires: ffmpeg, and one of (rsvg-convert | qlmanage[macOS]) for raster.
+// Requires: ffmpeg for encoding. SVG rasterizing uses @resvg/resvg-js (devDep),
+// which renders at exact dimensions — the curve stays fully contained.
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Resvg } from '@resvg/resvg-js';
 import { parseFont } from '../dist/text.js';
 
 // --- args & style -------------------------------------------------------
@@ -27,7 +28,9 @@ const STYLE = {
 	stroke: '#111111',
 	strokeWidth: 3.5,
 	background: '#ffffff',
-	pad: 110,
+	frame: '#e6e6e6', // subtle container border
+	pad: 150, // generous margin so the curve stays well inside
+	inset: 30, // distance from canvas edge to the container frame
 	frames: 44,
 	hold: 16,
 	fps: 24,
@@ -59,10 +62,12 @@ const opts = {
 const { path, bounds, segments } = font.render(TEXT, opts);
 const total = approxLength(segments);
 
-const { pad } = STYLE;
+const { pad, inset } = STYLE;
+const x0 = bounds.minX - pad;
+const y0 = bounds.minY - pad;
 const W = Math.round(bounds.width + pad * 2);
 const H = Math.round(bounds.height + pad * 2);
-const vb = `${bounds.minX - pad} ${bounds.minY - pad} ${W} ${H}`;
+const vb = `${x0} ${y0} ${W} ${H}`;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 const n = STYLE.frames + STYLE.hold;
@@ -70,27 +75,21 @@ for (let i = 0; i < n; i++) {
 	const p = i < STYLE.frames ? ease(i / (STYLE.frames - 1)) : 1;
 	const offset = total * (1 - p);
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="${vb}">
-  <rect x="${bounds.minX - pad}" y="${bounds.minY - pad}" width="${W}" height="${H}" fill="${STYLE.background}"/>
+  <rect x="${x0}" y="${y0}" width="${W}" height="${H}" fill="${STYLE.background}"/>
+  <rect x="${x0 + inset}" y="${y0 + inset}" width="${W - inset * 2}" height="${H - inset * 2}" rx="28"
+        fill="none" stroke="${STYLE.frame}" stroke-width="2"/>
   <path d="${path}" fill="none" stroke="${STYLE.stroke}" stroke-width="${STYLE.strokeWidth}" stroke-linecap="round"
         stroke-dasharray="${total}" stroke-dashoffset="${offset}"/>
 </svg>`;
-	writeFileSync(`${DIR}/frame_${String(i).padStart(3, '0')}.svg`, svg);
+	// Exact-size raster — no padding/cropping, so nothing gets clipped.
+	const png = new Resvg(svg, {
+		fitTo: { mode: 'width', value: STYLE.rasterWidth },
+	})
+		.render()
+		.asPng();
+	writeFileSync(`${DIR}/frame_${String(i).padStart(3, '0')}.png`, png);
 }
-console.log(`Generated ${n} frames (${W}x${H}) in ${DIR}`);
-
-// --- raster -------------------------------------------------------------
-const S = STYLE.rasterWidth;
-const RH = Math.round((H * S) / W);
-const raster = pickRaster();
-if (!raster) {
-	console.error(
-		'No SVG rasterizer found (need `rsvg-convert` or macOS `qlmanage`).\n' +
-			`Frames left in ${DIR}.`,
-	);
-	process.exit(1);
-}
-raster();
-console.log(`Rasterized with ${raster.name} (${S}x${RH})`);
+console.log(`Rendered ${n} frames (${W}x${H} viewBox) in ${DIR}`);
 
 // --- encode -------------------------------------------------------------
 if (!has('ffmpeg', ['-version'])) {
@@ -98,16 +97,15 @@ if (!has('ffmpeg', ['-version'])) {
 	process.exit(1);
 }
 const palette = join(DIR, 'palette.png');
-const crop = `crop=${S}:${RH}:0:0`;
 execFileSync('ffmpeg', [
 	'-y', '-framerate', String(STYLE.fps),
-	'-i', `${DIR}/frame_%03d.svg.png`,
-	'-vf', `${crop},palettegen=stats_mode=full`, palette,
+	'-i', `${DIR}/frame_%03d.png`,
+	'-vf', 'palettegen=stats_mode=full', palette,
 ], { stdio: 'ignore' });
 execFileSync('ffmpeg', [
 	'-y', '-framerate', String(STYLE.fps),
-	'-i', `${DIR}/frame_%03d.svg.png`, '-i', palette,
-	'-lavfi', `${crop}[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3`,
+	'-i', `${DIR}/frame_%03d.png`, '-i', palette,
+	'-lavfi', '[0:v][1:v]paletteuse=dither=bayer:bayer_scale=3',
 	'-loop', '0', OUT,
 ], { stdio: 'ignore' });
 console.log(`Wrote ${OUT}`);
@@ -120,35 +118,6 @@ function has(cmd, args) {
 	} catch {
 		return false;
 	}
-}
-
-function pickRaster() {
-	if (has('rsvg-convert', ['--version'])) {
-		const fn = () => {
-			for (let i = 0; i < n; i++) {
-				const base = `${DIR}/frame_${String(i).padStart(3, '0')}`;
-				// rsvg renders exact dimensions — no padding to crop.
-				execFileSync('rsvg-convert', ['-w', String(S), '-h', String(RH), `${base}.svg`, '-o', `${base}.svg.png`]);
-			}
-		};
-		Object.defineProperty(fn, 'name', { value: 'rsvg-convert' });
-		return fn;
-	}
-	if (has('qlmanage', [])) {
-		const fn = () => {
-			// qlmanage emits square thumbnails padded with the background; ffmpeg
-			// crops them back to the content rectangle.
-			const files = Array.from({ length: n }, (_, i) =>
-				`${DIR}/frame_${String(i).padStart(3, '0')}.svg`,
-			);
-			execFileSync('qlmanage', ['-t', '-s', String(S), '-o', DIR, ...files], {
-				stdio: 'ignore',
-			});
-		};
-		Object.defineProperty(fn, 'name', { value: 'qlmanage' });
-		return fn;
-	}
-	return null;
 }
 
 // Approximate arc length of fitted segments (for the dash reveal).

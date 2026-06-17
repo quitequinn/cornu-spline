@@ -97,6 +97,8 @@ Pure, font-independent helpers are exported too — `commandsToContours`, `comma
 
 ### Multi-line text & paragraphs
 
+![A multi-line paragraph rendered as Cornu splines](https://raw.githubusercontent.com/QuiteQuinn/cornu-spline/master/assets/cornu-paragraph.png)
+
 `paragraphSegments` / `renderParagraph` split on `\n` and (optionally) word-wrap to a `maxWidth`, stacking lines by `lineHeight`:
 
 ```js
