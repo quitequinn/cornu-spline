@@ -44,15 +44,21 @@ const points = [
 document.querySelector('path').setAttribute('d', cornuToSVGPath(points));
 
 // 2. Draw straight to a canvas
+const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
 ctx.beginPath();
 cornuToCanvas(ctx, points, { closed: true });
 ctx.stroke();
 
-// ...or get a Path2D for ctx.stroke(path) / hit-testing
+// ...or get a Path2D for ctx.stroke(path) / hit-testing (browser only —
+// cornuToPath2D throws where Path2D is unavailable, e.g. Node without a polyfill)
 import { cornuToPath2D, cornuLength } from 'cornu-spline';
 ctx.stroke(cornuToPath2D(points));
 const len = cornuLength(points); // approximate arc length
+
+// Already hold segments? serialize them without re-fitting:
+import { segmentsToSVGPath } from 'cornu-spline';
+const d = segmentsToSVGPath(cornuSegments(points), /* closed */ false);
 
 // 3. Raw drawing instructions for full control
 const segments = cornuSegments(points);
@@ -112,7 +118,7 @@ const { path, bounds, lines } = font.renderParagraph(
 );
 ```
 
-Each line is fitted independently, so `singleStroke` flows per line. Use `layoutLines(font, text, fontSize, maxWidth)` if you just want the wrapped strings.
+Each line is fitted independently, so `singleStroke` flows per line. `align: 'center'`/`'right'` only takes effect when `maxWidth` is set. To get just the wrapped strings, call `layoutLines(cornuFont.font, text, fontSize, maxWidth?, fontOptions?)` — note it takes the underlying opentype.js `Font` (`cornuFont.font`), not the `CornuFont` wrapper.
 
 ## React
 
@@ -153,7 +159,9 @@ function Title() {
 }
 ```
 
-`<CornuPath />` forwards every standard SVG `<path>` prop (`stroke`, `fill`, `strokeDasharray`, event handlers, `ref`, …). `<CornuText />` accepts either a `src` to load or a `font` from `useFont`/`loadFont`, and supports multi-line layout via `maxWidth` / `lineHeight` / `align` (and `\n`).
+`<CornuPath />` forwards every standard SVG `<path>` prop (`stroke`, `fill`, `strokeDasharray`, event handlers, `ref`, …). `<CornuText />` accepts either a `src` to load or a `font` from `useFont`/`loadFont`, supports multi-line layout via `maxWidth` / `lineHeight` / `align` (and `\n`), and forwards `x` / `y` / `flat` / `fontOptions` to the fitter. It also takes `bare` (render just the `<path>`, no `<svg>` wrapper), `padding` (px around the text in the viewBox, default 8), and `fallback` (shown while a `src` font loads, on load error, or for empty text).
+
+By default `<CornuText />` renders an **accessible** `<svg role="img" aria-label={text}>` with a `<title>`, so the rendered word is exposed to screen readers. Both `draw` and `wobble` honour `prefers-reduced-motion` (the `usePrefersReducedMotion()` hook is exported too).
 
 > Tip: memoize the `points` array (or keep a stable reference) so hooks only recompute when the geometry actually changes.
 
@@ -176,9 +184,9 @@ The `useWobble(points, wobble)` hook is exported if you want to animate points y
 
 ## API summary
 
-- **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `cornuToCanvas`, `cornuToPath2D`, `cornuLength`, types.
+- **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `segmentsToSVGPath`, `cornuToCanvas`, `cornuToPath2D`, `cornuLength`, types.
 - **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont` (`.segments`, `.toSVGPath`, `.render`, `.paragraphSegments`, `.renderParagraph`), `layoutLines`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
-- **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`.
+- **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`, `usePrefersReducedMotion`.
 
 ## Examples
 

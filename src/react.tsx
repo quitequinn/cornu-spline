@@ -1,6 +1,7 @@
 // react.tsx — React integration for cornu-spline.
-// Exposes hooks (useCornuPath, useCornuSegments, useWobble, useFont) and
-// components (<CornuPath>, <CornuText>) including draw-on and wobble animation.
+// Hooks (useCornuPath, useCornuSegments, useWobble, useFont) and components
+// (<CornuPath>, <CornuText>) with draw-on / wobble animation that respects
+// prefers-reduced-motion and exposes accessible text alternatives.
 import * as React from 'react';
 import {
 	cornuToSVGPath,
@@ -15,7 +16,8 @@ import { CornuFont, loadFont, type FontSource } from './text';
 
 /**
  * Memoized hook returning the SVG `d` string for a Cornu spline through the
- * given points. Recomputes only when points or options change.
+ * given points. Recomputes only when points or options change. (Pass a stable
+ * `points` reference so it doesn't refit on every parent render.)
  */
 export function useCornuPath(
 	points: InputPoint[],
@@ -40,7 +42,7 @@ export function useCornuSegments(
 	);
 }
 
-// --- Animation ----------------------------------------------------------
+// --- Animation utilities ------------------------------------------------
 
 const DRAW_KEYFRAMES_ID = 'cornu-spline-keyframes';
 
@@ -53,6 +55,26 @@ function ensureKeyframes(): void {
 	style.textContent =
 		'@keyframes cornu-draw-on{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}';
 	document.head.appendChild(style);
+}
+
+/** Live `prefers-reduced-motion: reduce` state, updating on change. */
+export function usePrefersReducedMotion(): boolean {
+	const query = '(prefers-reduced-motion: reduce)';
+	const read = () =>
+		typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+			? window.matchMedia(query).matches
+			: false;
+	const [reduced, setReduced] = React.useState(read);
+	React.useEffect(() => {
+		if (typeof window === 'undefined' || typeof window.matchMedia !== 'function')
+			return;
+		const mq = window.matchMedia(query);
+		const onChange = () => setReduced(mq.matches);
+		onChange();
+		mq.addEventListener?.('change', onChange);
+		return () => mq.removeEventListener?.('change', onChange);
+	}, []);
+	return reduced;
 }
 
 /** Options for the draw-on (stroke reveal) animation. */
@@ -69,19 +91,13 @@ export interface DrawOptions {
 
 type DrawProp = boolean | DrawOptions;
 
-// Build the inline style + attributes that drive the draw-on animation.
-function drawStyle(draw: DrawProp | undefined): React.CSSProperties {
-	if (!draw) return {};
-	const o: DrawOptions = draw === true ? {} : draw;
+// Build the CSS `animation` shorthand for the draw-on reveal.
+function drawAnimation(draw: DrawProp): string {
+	const o: DrawOptions = typeof draw === 'object' ? draw : {};
 	const { duration = 1200, delay = 0, easing = 'ease-in-out', loop = false } = o;
-	ensureKeyframes();
-	return {
-		strokeDasharray: 1,
-		strokeDashoffset: 1,
-		animation: `cornu-draw-on ${duration}ms ${easing} ${delay}ms ${
-			loop ? 'infinite' : 'forwards'
-		}`,
-	};
+	return `cornu-draw-on ${duration}ms ${easing} ${delay}ms ${
+		loop ? 'infinite' : 'forwards'
+	}`;
 }
 
 /** Options for the wobble animation. */
@@ -94,26 +110,33 @@ export interface WobbleOptions {
 
 type WobbleProp = number | WobbleOptions;
 
+function normalizeWobble(wobble: WobbleProp | undefined): {
+	amount: number;
+	speed: number;
+} {
+	if (wobble == null || wobble === 0) return { amount: 0, speed: 1 };
+	if (typeof wobble === 'number') return { amount: wobble, speed: 1 };
+	return { amount: wobble.amount ?? 4, speed: wobble.speed ?? 1 };
+}
+
+const toTuple = (p: InputPoint): [number, number] =>
+	Array.isArray(p) ? [p[0], p[1]] : [p.x, p.y];
+
 /**
- * Animate a set of points with smooth per-point oscillation. Returns a new
- * points array that updates each animation frame. Pass `0`/undefined to
- * disable (returns the input unchanged).
+ * Animate a set of points with smooth per-point oscillation, returning a new
+ * points array each animation frame. NOTE: this re-renders the consuming
+ * component every frame; for rendering a single spline prefer `<CornuPath
+ * wobble>`, which animates imperatively without per-frame React renders.
+ * Respects `prefers-reduced-motion` (returns the input unchanged).
  */
 export function useWobble(
 	points: InputPoint[],
 	wobble?: WobbleProp,
 ): InputPoint[] {
-	const o: WobbleOptions =
-		wobble == null || wobble === 0
-			? { amount: 0 }
-			: typeof wobble === 'number'
-				? { amount: wobble }
-				: wobble;
-	const amount = o.amount ?? 4;
-	const speed = o.speed ?? 1;
-
+	const { amount, speed } = normalizeWobble(wobble);
+	const reduced = usePrefersReducedMotion();
 	const [tick, setTick] = React.useState(0);
-	const enabled = amount > 0;
+	const enabled = amount > 0 && !reduced;
 
 	React.useEffect(() => {
 		if (!enabled || typeof requestAnimationFrame === 'undefined') return;
@@ -128,18 +151,17 @@ export function useWobble(
 
 	return React.useMemo(() => {
 		if (!enabled) return points;
-		const t = (typeof performance !== 'undefined' ? performance.now() : tick * 16) /
-			1000;
+		const t =
+			(typeof performance !== 'undefined' ? performance.now() : tick * 16) / 1000;
 		return points.map((p, i) => {
-			const x = Array.isArray(p) ? p[0] : p.x;
-			const y = Array.isArray(p) ? p[1] : p.y;
+			const [x, y] = toTuple(p);
 			const phase = i * 1.7;
 			return [
 				x + Math.sin(t * speed + phase) * amount,
 				y + Math.cos(t * speed * 0.9 + phase * 1.3) * amount,
 			] as InputPoint;
 		});
-		// `tick` drives the recompute each frame.
+		// `tick` is the per-frame recompute trigger.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [points, amount, speed, enabled, tick]);
 }
@@ -166,23 +188,75 @@ export interface CornuPathProps
 /**
  * Renders a Cornu spline as an SVG <path>. Place inside an <svg> element.
  * All standard SVG path props (stroke, fill, strokeWidth, ...) are forwarded.
+ * Wobble animates imperatively (no per-frame React re-render); draw-on
+ * re-triggers when the geometry changes. Both honor prefers-reduced-motion.
  */
 export const CornuPath = React.forwardRef<SVGPathElement, CornuPathProps>(
 	function CornuPath(
-		{ points, closed, tweaks, flat, draw, wobble, style, ...rest },
+		{ points, closed, tweaks, flat, draw, wobble, ...rest },
 		ref,
 	) {
-		const animated = useWobble(points, wobble);
-		const d = useCornuPath(animated, { closed, tweaks, flat });
-		const ds = drawStyle(draw);
+		const reduced = usePrefersReducedMotion();
+		const innerRef = React.useRef<SVGPathElement | null>(null);
+		const setRef = React.useCallback(
+			(el: SVGPathElement | null) => {
+				innerRef.current = el;
+				if (typeof ref === 'function') ref(el);
+				else if (ref) ref.current = el;
+			},
+			[ref],
+		);
+
+		const baseD = useCornuPath(points, { closed, tweaks, flat });
+		const { amount, speed } = normalizeWobble(wobble);
+		const wobbleOn = amount > 0 && !reduced;
+		const drawActive = !!draw && !wobbleOn && !reduced;
+
+		// Wobble: rewrite the `d` attribute each frame imperatively — no React
+		// state, so the component does not re-render per frame.
+		React.useEffect(() => {
+			if (!wobbleOn || typeof requestAnimationFrame === 'undefined') return;
+			const tuples = points.map(toTuple);
+			let raf = 0;
+			const loop = () => {
+				const t = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+				const live = tuples.map(([x, y], i) => [
+					x + Math.sin(t * speed + i * 1.7) * amount,
+					y + Math.cos(t * speed * 0.9 + i * 2.2) * amount,
+				]) as InputPoint[];
+				innerRef.current?.setAttribute(
+					'd',
+					cornuToSVGPath(live, { closed, tweaks, flat }),
+				);
+				raf = requestAnimationFrame(loop);
+			};
+			raf = requestAnimationFrame(loop);
+			return () => {
+				cancelAnimationFrame(raf);
+				innerRef.current?.setAttribute('d', baseD);
+			};
+		}, [wobbleOn, points, amount, speed, closed, tweaks, flat, baseD]);
+
+		// Draw-on: (re)trigger whenever the geometry changes.
+		React.useEffect(() => {
+			const el = innerRef.current;
+			if (!el) return;
+			if (!drawActive) {
+				el.style.animation = '';
+				el.style.strokeDasharray = '';
+				el.style.strokeDashoffset = '';
+				return;
+			}
+			ensureKeyframes();
+			el.style.strokeDasharray = '1';
+			el.style.strokeDashoffset = '1';
+			el.style.animation = 'none';
+			void el.getBoundingClientRect(); // force reflow so the animation restarts
+			el.style.animation = draw ? drawAnimation(draw) : '';
+		}, [drawActive, baseD, draw]);
+
 		return (
-			<path
-				ref={ref}
-				d={d}
-				pathLength={draw ? 1 : undefined}
-				style={{ ...ds, ...style }}
-				{...rest}
-			/>
+			<path ref={setRef} d={baseD} pathLength={drawActive ? 1 : undefined} {...rest} />
 		);
 	},
 );
@@ -240,6 +314,10 @@ export interface CornuTextProps
 	src?: FontSource;
 	/** Font size in pixels. Default 72. */
 	fontSize?: number;
+	/** Baseline origin x. Default 0. */
+	x?: number;
+	/** Baseline origin y. Default fontSize. */
+	y?: number;
 	/** Curve sample density; lower = looser/sketchier. Default 3. */
 	detail?: number;
 	/** Random jitter in font units for an organic feel. Default 0. */
@@ -248,6 +326,10 @@ export interface CornuTextProps
 	seed?: number;
 	/** Smoothing iterations. Default 20. */
 	tweaks?: number;
+	/** Emit a flat polyline instead of Bezier curves. */
+	flat?: boolean;
+	/** opentype.js render options (kerning, ligatures, ...). */
+	fontOptions?: import('./text').CornuTextOptions['fontOptions'];
 	/**
 	 * Reproduce the original NodeBox look: one flowing open spline through the
 	 * whole string instead of tidy per-glyph outlines. Pair with low `detail`.
@@ -267,24 +349,29 @@ export interface CornuTextProps
 	pathProps?: Omit<React.SVGProps<SVGPathElement>, 'd'>;
 	/** Render only the <path> (no <svg> wrapper). Default false. */
 	bare?: boolean;
-	/** Rendered while a `src` font is still loading. */
+	/** Rendered while a `src` font is loading, on load error, or empty text. */
 	fallback?: React.ReactNode;
 }
 
 /**
  * Renders a string as a Cornu spline. Supply either a loaded `font` (from
- * useFont/loadFont) or a `src` to load. By default it returns a self-sizing
- * <svg>; pass `bare` to get just the <path>.
+ * useFont/loadFont) or a `src` to load. By default it returns a self-sizing,
+ * accessible <svg> (role="img", aria-label = text, <title>); pass `bare` to get
+ * just the <path>.
  */
 export function CornuText({
 	text,
 	font: fontProp,
 	src,
 	fontSize = 72,
+	x,
+	y,
 	detail = 3,
 	jitter = 0,
 	seed = 1,
 	tweaks,
+	flat,
+	fontOptions,
 	singleStroke = false,
 	maxWidth,
 	lineHeight,
@@ -298,51 +385,53 @@ export function CornuText({
 }: CornuTextProps): React.ReactElement | null {
 	const loaded = useFont(fontProp ? null : src);
 	const font = fontProp ?? loaded.font;
+	const reduced = usePrefersReducedMotion();
 
 	const render = React.useMemo(() => {
 		if (!font) return null;
-		// renderParagraph handles single- and multi-line uniformly.
-		const { segments, bounds } = font.renderParagraph(text, {
+		// renderParagraph handles single- and multi-line uniformly and returns a
+		// ready-made path string (no need to re-serialize here).
+		return font.renderParagraph(text, {
 			fontSize,
+			x,
+			y,
 			detail,
 			jitter,
 			seed,
 			tweaks,
+			flat,
+			fontOptions,
 			singleStroke,
 			maxWidth,
 			lineHeight,
 			align,
 		});
-		return { segments, bounds };
 	}, [
-		font, text, fontSize, detail, jitter, seed, tweaks, singleStroke,
-		maxWidth, lineHeight, align,
+		font, text, fontSize, x, y, detail, jitter, seed, tweaks, flat,
+		fontOptions, singleStroke, maxWidth, lineHeight, align,
 	]);
 
-	if (!font || !render) return <>{fallback}</>;
+	// Nothing to draw: still loading, load error, or empty/whitespace text.
+	if (!font || !render || render.segments.length === 0) return <>{fallback}</>;
 
-	const f = (n: number) => {
-		const r = Math.round(n * 1e4) / 1e4;
-		return Object.is(r, -0) ? '0' : String(r);
-	};
-	let d = '';
-	for (const s of render.segments) {
-		if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
-		else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
-		else d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
-	}
-	d = d.trim();
+	const drawActive = !!draw && !reduced;
+	const drawStyleProps: React.CSSProperties = drawActive
+		? { strokeDasharray: 1, strokeDashoffset: 1, animation: drawAnimation(draw!) }
+		: {};
+	if (drawActive) ensureKeyframes();
 
-	const ds = drawStyle(draw);
 	const pathEl = (
 		<path
-			d={d}
-			pathLength={draw ? 1 : undefined}
+			// Re-key on geometry so the draw-on animation restarts when text changes.
+			key={drawActive ? render.path : undefined}
+			d={render.path}
+			pathLength={drawActive ? 1 : undefined}
 			fill="none"
 			stroke="currentColor"
 			strokeWidth={2}
+			{...(bare ? { role: 'img', 'aria-label': text } : {})}
 			{...pathProps}
-			style={{ ...ds, ...pathProps?.style }}
+			style={{ ...drawStyleProps, ...pathProps?.style }}
 		/>
 	);
 
@@ -353,7 +442,8 @@ export function CornuText({
 		height + padding * 2
 	}`;
 	return (
-		<svg viewBox={vb} {...svgProps}>
+		<svg role="img" aria-label={text} viewBox={vb} {...svgProps}>
+			<title>{text}</title>
 			{pathEl}
 		</svg>
 	);

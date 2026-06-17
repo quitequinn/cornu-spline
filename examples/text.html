@@ -31,6 +31,12 @@
 			path {
 				transition: stroke 0.2s;
 			}
+			@media (prefers-reduced-motion: reduce) {
+				path {
+					animation: none !important;
+					stroke-dashoffset: 0 !important;
+				}
+			}
 		</style>
 		<!-- Map the bare specifiers to ESM CDN builds so this runs with no bundler. -->
 		<script type="importmap">

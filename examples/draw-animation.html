@@ -46,6 +46,12 @@
 				stroke-dashoffset: 1;
 				animation: cornu-draw var(--dur, 1.6s) ease-in-out forwards;
 			}
+			@media (prefers-reduced-motion: reduce) {
+				path.draw {
+					animation: none;
+					stroke-dashoffset: 0;
+				}
+			}
 		</style>
 	</head>
 	<body>
@@ -115,10 +121,12 @@
 
 			document.getElementById('replay').addEventListener('click', startDraw);
 			tweaksEl.addEventListener('input', () => (wobbleEl.checked ? paint() : startDraw()));
+			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 			wobbleEl.addEventListener('change', () => {
 				cancelAnimationFrame(raf);
-				if (wobbleEl.checked) loop();
-				else startDraw();
+				// Respect reduced-motion: keep a static spline instead of wobbling.
+				if (wobbleEl.checked && !reducedMotion.matches) loop();
+				else paint();
 			});
 
 			startDraw();

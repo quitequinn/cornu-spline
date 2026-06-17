@@ -1,10 +1,19 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync, existsSync } from 'node:fs';
 import {
 	commandsToContours,
 	commandsToCornuSegments,
 	segmentBounds,
+	parseFont,
 	type GlyphCommand,
 } from '../src/text';
+
+// The demo font ships in the repo; use it for font-backed tests when present.
+const FONT_PATH = 'docs/font.ttf';
+const font = existsSync(FONT_PATH)
+	? parseFont(new Uint8Array(readFileSync(FONT_PATH)))
+	: null;
+const withFont = font ? describe : describe.skip;
 
 // Two glyph-like contours: an open stroke and a closed triangle.
 const COMMANDS: GlyphCommand[] = [
@@ -122,5 +131,40 @@ describe('segmentBounds', () => {
 			width: 0,
 			height: 0,
 		});
+	});
+});
+
+withFont('CornuFont.renderParagraph (font-backed)', () => {
+	it('wraps long text into multiple lines', () => {
+		const r = font!.renderParagraph('the quick brown fox jumps over lazy dogs', {
+			fontSize: 40,
+			maxWidth: 200,
+		});
+		expect(r.lines.length).toBeGreaterThan(1);
+		expect(r.segments.length).toBeGreaterThan(0);
+		expect(r.bounds.height).toBeGreaterThan(40);
+		expect(r.path.startsWith('M ')).toBe(true);
+	});
+
+	it('singleStroke produces one open spline per non-blank line', () => {
+		const segs = font!.paragraphSegments('ab\ncd', {
+			fontSize: 40,
+			detail: 1,
+			singleStroke: true,
+		});
+		expect(segs.filter((s) => s.type === 'moveto')).toHaveLength(2);
+	});
+
+	it('blank lines still advance the baseline', () => {
+		const r = font!.renderParagraph('a\n\nb', { fontSize: 40 });
+		expect(r.lines).toEqual(['a', '', 'b']);
+		expect(r.segments.length).toBeGreaterThan(0);
+	});
+
+	it('right alignment shifts lines further right than left alignment', () => {
+		const opts = { fontSize: 40, maxWidth: 400 } as const;
+		const left = font!.renderParagraph('hi', { ...opts, align: 'left' });
+		const right = font!.renderParagraph('hi', { ...opts, align: 'right' });
+		expect(right.bounds.minX).toBeGreaterThan(left.bounds.minX + 100);
 	});
 });

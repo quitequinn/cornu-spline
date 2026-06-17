@@ -4,9 +4,14 @@
 //
 // Depends on opentype.js (a peer/runtime dependency) only in this entry; the
 // core `cornu-spline` entry stays dependency-free.
+// Types come from @types/opentype.js (DefinitelyTyped, 1.3.x — there is no v2
+// typings package). They cover the v2 runtime API we use (parse, Font,
+// getPath, getAdvanceWidth, RenderOptions); the interop shim below bridges the
+// ESM/CJS shape difference.
 import * as opentype from 'opentype.js';
 import {
 	cornuSegments,
+	segmentsToSVGPath,
 	type Segment,
 	type CornuOptions,
 } from './core';
@@ -16,6 +21,12 @@ import {
 // is present. Types still come from the `opentype` namespace (erased at build).
 const ot: typeof opentype =
 	(opentype as unknown as { default?: typeof opentype }).default ?? opentype;
+
+if (typeof ot?.parse !== 'function') {
+	throw new Error(
+		'cornu-spline: could not resolve opentype.js `parse()`. Ensure opentype.js v2 is installed and resolvable.',
+	);
+}
 
 /** A glyph path command as produced by opentype.js `Path.commands`. */
 export interface GlyphCommand {
@@ -40,7 +51,13 @@ export interface CornuTextOptions extends Pick<CornuOptions, 'tweaks' | 'flat'> 
 	fontSize?: number;
 	/** Origin x (baseline). Default 0. */
 	x?: number;
-	/** Origin y (baseline). Default fontSize (so glyphs sit below y=0). */
+	/**
+	 * Origin y of the text baseline. opentype's y axis grows downward and most
+	 * of each glyph sits *above* the baseline (smaller y), with descenders
+	 * below. Defaults to `fontSize` so the ascenders land near y=0. The exact
+	 * extent depends on the font's metrics; size your viewBox from the returned
+	 * bounds rather than assuming it.
+	 */
 	y?: number;
 	/**
 	 * Sample points generated per curve command. Lower = looser, more
@@ -283,21 +300,10 @@ export function segmentBounds(segments: Segment[]): Bounds {
 	return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
-// Render segments to an SVG path `d` string (mirrors core.cornuToSVGPath but
-// works on already-fitted segments so we don't refit per contour).
-function segmentsToPath(segments: Segment[]): string {
-	const f = (n: number) => {
-		const r = Math.round(n * 1e4) / 1e4;
-		return Object.is(r, -0) ? '0' : String(r);
-	};
-	let d = '';
-	for (const s of segments) {
-		if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
-		else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
-		else d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
-	}
-	return d.trim();
-}
+// Serialize already-fitted segments to an SVG path `d` string. Shares the
+// single implementation in core so formatting never drifts.
+const segmentsToPath = (segments: Segment[]): string =>
+	segmentsToSVGPath(segments);
 
 /**
  * Break text into laid-out lines: split on "\n", then greedily word-wrap each
@@ -381,18 +387,27 @@ export class CornuFont {
 	 * fitted independently (so `singleStroke` flows per line, not across lines).
 	 */
 	paragraphSegments(text: string, options: CornuParagraphOptions = {}): Segment[] {
+		const lines = layoutLines(
+			this.font,
+			text,
+			options.fontSize ?? 72,
+			options.maxWidth,
+			options.fontOptions,
+		);
+		return this.linesToSegments(lines, options);
+	}
+
+	// Fit pre-wrapped lines to stacked Cornu segments. Shared by
+	// paragraphSegments and renderParagraph so layout runs only once.
+	private linesToSegments(
+		lines: string[],
+		options: CornuParagraphOptions,
+	): Segment[] {
 		const fontSize = options.fontSize ?? 72;
 		const lineHeight = (options.lineHeight ?? 1.3) * fontSize;
 		const x0 = options.x ?? 0;
 		const y0 = options.y ?? fontSize;
 		const align = options.align ?? 'left';
-		const lines = layoutLines(
-			this.font,
-			text,
-			fontSize,
-			options.maxWidth,
-			options.fontOptions,
-		);
 		const out: Segment[] = [];
 		lines.forEach((line, i) => {
 			if (!line) return; // blank line still advances the baseline below
@@ -406,23 +421,24 @@ export class CornuFont {
 		return out;
 	}
 
-	/** Multi-line segments plus path and bounding box. */
+	/** Multi-line segments plus path and bounding box (layout computed once). */
 	renderParagraph(
 		text: string,
 		options: CornuParagraphOptions = {},
 	): { segments: Segment[]; path: string; bounds: Bounds; lines: string[] } {
-		const segments = this.paragraphSegments(text, options);
+		const lines = layoutLines(
+			this.font,
+			text,
+			options.fontSize ?? 72,
+			options.maxWidth,
+			options.fontOptions,
+		);
+		const segments = this.linesToSegments(lines, options);
 		return {
 			segments,
 			path: segmentsToPath(segments),
 			bounds: segmentBounds(segments),
-			lines: layoutLines(
-				this.font,
-				text,
-				options.fontSize ?? 72,
-				options.maxWidth,
-				options.fontOptions,
-			),
+			lines,
 		};
 	}
 }

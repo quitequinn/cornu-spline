@@ -9,6 +9,7 @@ export type {
 export {
 	cornuSegments,
 	cornuToSVGPath,
+	segmentsToSVGPath,
 	cornuToCanvas,
 	cornuToPath2D,
 	cornuLength,

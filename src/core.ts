@@ -430,18 +430,18 @@ function toPt(p: InputPoint): Pt {
 }
 
 // Nudge exact-duplicate points apart to avoid zero-length chords (which
-// would divide by zero in the fitter).
+// would divide by zero in the fitter). O(n) via a coordinate-keyed Set.
 function dedupe(points: Pt[]): Pt[] {
 	const out: Pt[] = [];
+	const seen = new Set<string>();
 	for (const [x, y] of points) {
 		let nx = x;
 		let ny = y;
-		for (const [px, py] of out) {
-			if (nx === px && ny === py) {
-				nx += 1e-9;
-				ny += 1e-9;
-			}
+		while (seen.has(`${nx},${ny}`)) {
+			nx += 1e-9;
+			ny += 1e-9;
 		}
+		seen.add(`${nx},${ny}`);
 		out.push([nx, ny]);
 	}
 	return out;
@@ -478,6 +478,38 @@ export function cornuSegments(
 	return segments;
 }
 
+// Format a number for an SVG path: trim noise to 4dp, avoid "-0", and never
+// emit non-finite or exponential tokens (both invalid in an SVG `d`).
+function formatCoord(n: number): string {
+	if (!Number.isFinite(n)) return '0';
+	const r = Math.round(n * 1e4) / 1e4;
+	if (Object.is(r, -0) || r === 0) return '0';
+	// `String` only uses exponential notation for |x| >= 1e21 (after 4dp
+	// rounding the smallest non-zero is 1e-4, which is never exponential), so
+	// expand only the pathological large case to keep the SVG `d` token valid.
+	return Math.abs(r) >= 1e21
+		? r.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 4 })
+		: String(r);
+}
+
+/**
+ * Serialize already-fitted {@link Segment}s to an SVG path `d` string. Use this
+ * when you already hold segments (e.g. from {@link cornuSegments}) to avoid
+ * re-fitting. Pass `closed` to append `Z`.
+ */
+export function segmentsToSVGPath(segments: Segment[], closed = false): string {
+	const f = formatCoord;
+	let d = '';
+	for (const s of segments) {
+		if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
+		else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
+		else
+			d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
+	}
+	if (closed) d += 'Z';
+	return d.trim();
+}
+
 /**
  * Fit a Cornu spline through the points and return an SVG path `d` string.
  */
@@ -485,21 +517,7 @@ export function cornuToSVGPath(
 	points: InputPoint[],
 	options: CornuOptions = {},
 ): string {
-	const segs = cornuSegments(points, options);
-	const f = (n: number) => {
-		// Trim noise but keep precision; avoid "-0".
-		const r = Math.round(n * 1e4) / 1e4;
-		return Object.is(r, -0) ? '0' : String(r);
-	};
-	let d = '';
-	for (const s of segs) {
-		if (s.type === 'moveto') d += `M ${f(s.x)} ${f(s.y)} `;
-		else if (s.type === 'lineto') d += `L ${f(s.x)} ${f(s.y)} `;
-		else
-			d += `C ${f(s.x1)} ${f(s.y1)} ${f(s.x2)} ${f(s.y2)} ${f(s.x)} ${f(s.y)} `;
-	}
-	if (options.closed) d += 'Z';
-	return d.trim();
+	return segmentsToSVGPath(cornuSegments(points, options), options.closed);
 }
 
 /**

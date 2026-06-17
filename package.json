@@ -49,6 +49,7 @@
 	},
 	"files": [
 		"dist",
+		"src",
 		"LICENSE-MIT",
 		"LICENSE-APACHE",
 		"NOTICE"

@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
+import { readFileSync, existsSync } from 'node:fs';
 import { render, cleanup, renderHook } from '@testing-library/react';
 import * as React from 'react';
 import { CornuPath, CornuText, useWobble } from '../src/react';
+import { parseFont } from '../src/text';
 
 afterEach(cleanup);
+
+const FONT_PATH = 'docs/font.ttf';
+const font = existsSync(FONT_PATH)
+	? parseFont(new Uint8Array(readFileSync(FONT_PATH)))
+	: null;
+const withFont = font ? describe : describe.skip;
 
 const POINTS: [number, number][] = [
 	[0, 0],
@@ -79,5 +87,30 @@ describe('<CornuText>', () => {
 			<CornuText src="/does-not-exist.ttf" text="Hi" fallback={<span>loading</span>} />,
 		);
 		expect(getByText('loading')).toBeTruthy();
+	});
+});
+
+withFont('<CornuText> (font-backed accessibility)', () => {
+	it('renders an accessible <svg> with role, aria-label, and <title>', () => {
+		const { container } = render(<CornuText font={font} text="Hi" />);
+		const svg = container.querySelector('svg')!;
+		expect(svg.getAttribute('role')).toBe('img');
+		expect(svg.getAttribute('aria-label')).toBe('Hi');
+		expect(container.querySelector('title')?.textContent).toBe('Hi');
+		expect(container.querySelector('path')?.getAttribute('d')).toMatch(/^M /);
+	});
+
+	it('labels the bare <path> output', () => {
+		const { container } = render(<CornuText font={font} text="Hi" bare />);
+		const path = container.querySelector('path')!;
+		expect(path.getAttribute('role')).toBe('img');
+		expect(path.getAttribute('aria-label')).toBe('Hi');
+	});
+
+	it('renders the fallback for empty text', () => {
+		const { getByText } = render(
+			<CornuText font={font} text="" fallback={<span>empty</span>} />,
+		);
+		expect(getByText('empty')).toBeTruthy();
 	});
 });
