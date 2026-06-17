@@ -337,8 +337,10 @@ export interface CornuTextProps
 	maxWidth?: number;
 	/** Line height as a multiple of fontSize (multi-line). Default 1.3. */
 	lineHeight?: number;
-	/** Horizontal alignment for wrapped lines. Default "left". */
+	/** Horizontal alignment for wrapped lines. Default "left" ("right" for rtl). */
 	align?: 'left' | 'center' | 'right';
+	/** Text directionality. "rtl" reverses visual order (non-joining scripts). */
+	direction?: 'ltr' | 'rtl';
 	/** Padding (px) added around the text in the SVG viewBox. Default 8. */
 	padding?: number;
 	/** Animate the stroke drawing on. */
@@ -374,6 +376,7 @@ export function CornuText({
 	maxWidth,
 	lineHeight,
 	align,
+	direction,
 	padding = 8,
 	draw,
 	pathProps,
@@ -404,10 +407,11 @@ export function CornuText({
 			maxWidth,
 			lineHeight,
 			align,
+			direction,
 		});
 	}, [
 		font, text, fontSize, x, y, detail, jitter, seed, tweaks, flat,
-		fontOptions, singleStroke, maxWidth, lineHeight, align,
+		fontOptions, singleStroke, maxWidth, lineHeight, align, direction,
 	]);
 
 	const path = render && render.segments.length > 0 ? render.path : null;

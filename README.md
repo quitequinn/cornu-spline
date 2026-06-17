@@ -118,7 +118,15 @@ const { path, bounds, lines } = font.renderParagraph(
 );
 ```
 
-Each line is fitted independently, so `singleStroke` flows per line. `align: 'center'`/`'right'` only takes effect when `maxWidth` is set. To get just the wrapped strings, call `layoutLines(cornuFont.font, text, fontSize, maxWidth?, fontOptions?)` — note it takes the underlying opentype.js `Font` (`cornuFont.font`), not the `CornuFont` wrapper.
+Each line is fitted independently, so `singleStroke` flows per line. `align: 'center'`/`'right'` only takes effect when `maxWidth` is set.
+
+**Direction & languages.** Latin, Cyrillic, Greek, and other LTR scripts work out of the box. Pass `direction: 'rtl'` to render a right-to-left run — this reverses the visual order (and defaults alignment to right), which is correct for **non-joining** scripts like Hebrew:
+
+```js
+font.toSVGPath('שלום', { fontSize: 64, direction: 'rtl' });
+```
+
+opentype.js does **no complex shaping**, so joining scripts (Arabic) and reordering scripts (Indic) are *not* shaped here — their glyphs render in isolated/logical form. For those, or for mixed-direction text, run a shaping/bidi pass (e.g. HarfBuzz / `bidi-js`) and pass the resulting visual order with `direction: 'ltr'`. The `visualOrder(text, direction)` helper is exported for the simple reversal case. To get just the wrapped strings, call `layoutLines(cornuFont.font, text, fontSize, maxWidth?, fontOptions?)` — note it takes the underlying opentype.js `Font` (`cornuFont.font`), not the `CornuFont` wrapper.
 
 ## React
 
@@ -185,7 +193,7 @@ The `useWobble(points, wobble)` hook is exported if you want to animate points y
 ## API summary
 
 - **`cornu-spline`** — `cornuSegments`, `cornuToSVGPath`, `segmentsToSVGPath`, `cornuToCanvas`, `cornuToPath2D`, `cornuLength`, types.
-- **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont` (`.segments`, `.toSVGPath`, `.render`, `.paragraphSegments`, `.renderParagraph`), `layoutLines`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
+- **`cornu-spline/text`** — `loadFont`, `parseFont`, `CornuFont` (`.segments`, `.toSVGPath`, `.render`, `.paragraphSegments`, `.renderParagraph`), `layoutLines`, `visualOrder`, `commandsToContours`, `commandsToCornuSegments`, `segmentBounds`.
 - **`cornu-spline/react`** — `<CornuPath>`, `<CornuText>`, `useCornuPath`, `useCornuSegments`, `useWobble`, `useFont`, `usePrefersReducedMotion`.
 
 ## Examples

@@ -88,6 +88,15 @@ export interface CornuTextOptions extends Pick<CornuOptions, 'tweaks' | 'flat'> 
 	 * Default false.
 	 */
 	singleStroke?: boolean;
+	/**
+	 * Text directionality. `'rtl'` reverses the visual order so a single
+	 * right-to-left run renders correctly — this works for non-joining scripts
+	 * (e.g. Hebrew). It does NOT perform complex shaping: joining scripts
+	 * (Arabic) and reordering scripts (Indic) need a shaping engine (HarfBuzz);
+	 * for mixed-direction text, run a bidi pass yourself and pass the visual
+	 * order with `'ltr'`. Default `'ltr'`.
+	 */
+	direction?: 'ltr' | 'rtl';
 	/** opentype.js render options (kerning, ligatures, ...). */
 	fontOptions?: opentype.RenderOptions;
 }
@@ -346,6 +355,19 @@ export function layoutLines(
 	return lines;
 }
 
+/**
+ * Reorder a single-direction run for rendering. For `'rtl'` it reverses the
+ * Unicode code points so opentype's left-to-right glyph placement produces a
+ * right-to-left visual order — correct for non-joining scripts such as Hebrew.
+ * Joining/complex scripts (Arabic, Indic) need a shaping engine and are not
+ * handled here; for mixed-direction text, run a bidi algorithm first and pass
+ * the result with `'ltr'`.
+ */
+export function visualOrder(text: string, direction: 'ltr' | 'rtl' = 'ltr'): string {
+	// Array.from splits on code points (keeps surrogate pairs intact).
+	return direction === 'rtl' ? Array.from(text).reverse().join('') : text;
+}
+
 /** A loaded font ready to produce Cornu splines from text. */
 export class CornuFont {
 	/** The underlying opentype.js Font. */
@@ -360,7 +382,8 @@ export class CornuFont {
 		const fontSize = options.fontSize ?? 72;
 		const x = options.x ?? 0;
 		const y = options.y ?? fontSize;
-		return this.font.getPath(text, x, y, fontSize, options.fontOptions)
+		const t = visualOrder(text, options.direction);
+		return this.font.getPath(t, x, y, fontSize, options.fontOptions)
 			.commands as GlyphCommand[];
 	}
 
@@ -413,7 +436,8 @@ export class CornuFont {
 		const lineHeight = (options.lineHeight ?? 1.3) * fontSize;
 		const x0 = options.x ?? 0;
 		const y0 = options.y ?? fontSize;
-		const align = options.align ?? 'left';
+		// RTL text defaults to right alignment.
+		const align = options.align ?? (options.direction === 'rtl' ? 'right' : 'left');
 		const out: Segment[] = [];
 		lines.forEach((line, i) => {
 			if (!line) return; // blank line still advances the baseline below

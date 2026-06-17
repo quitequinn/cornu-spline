@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/).
 
+## 0.6.0
+
+### Added
+- RTL / directionality: `direction: 'rtl'` option on the text API and
+  `<CornuText>` reverses the visual order (and defaults alignment to right),
+  rendering non-joining RTL scripts like Hebrew correctly. Exported the
+  `visualOrder(text, direction)` helper. Complex shaping (Arabic joining, Indic
+  reordering) still requires an external shaping engine — documented.
+
 ## 0.5.0
 
 Hardening pass from a multi-engineer panel review (17 findings, all addressed).

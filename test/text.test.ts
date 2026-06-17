@@ -88,6 +88,27 @@ describe('commandsToCornuSegments', () => {
 	});
 });
 
+describe('visualOrder', () => {
+	it('leaves LTR text unchanged', async () => {
+		const { visualOrder } = await import('../src/text');
+		expect(visualOrder('abc', 'ltr')).toBe('abc');
+		expect(visualOrder('abc')).toBe('abc');
+	});
+
+	it('reverses code points for RTL', async () => {
+		const { visualOrder } = await import('../src/text');
+		expect(visualOrder('abc', 'rtl')).toBe('cba');
+		// Hebrew "שלום" → reversed for left-to-right placement.
+		expect(visualOrder('שלום', 'rtl')).toBe('םולש');
+	});
+
+	it('keeps surrogate pairs intact', async () => {
+		const { visualOrder } = await import('../src/text');
+		// Two astral emoji should swap as whole units, not split.
+		expect(visualOrder('😀😁', 'rtl')).toBe('😁😀');
+	});
+});
+
 describe('layoutLines', () => {
 	// A tiny fake font: every char is 10 units wide at the given size.
 	const fakeFont = {
