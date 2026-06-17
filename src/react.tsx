@@ -60,11 +60,9 @@ function ensureKeyframes(): void {
 /** Live `prefers-reduced-motion: reduce` state, updating on change. */
 export function usePrefersReducedMotion(): boolean {
 	const query = '(prefers-reduced-motion: reduce)';
-	const read = () =>
-		typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-			? window.matchMedia(query).matches
-			: false;
-	const [reduced, setReduced] = React.useState(read);
+	// Initialize `false` on both server and first client render to avoid a
+	// hydration mismatch; sync to the real value in an effect after mount.
+	const [reduced, setReduced] = React.useState(false);
 	React.useEffect(() => {
 		if (typeof window === 'undefined' || typeof window.matchMedia !== 'function')
 			return;
@@ -386,6 +384,7 @@ export function CornuText({
 	const loaded = useFont(fontProp ? null : src);
 	const font = fontProp ?? loaded.font;
 	const reduced = usePrefersReducedMotion();
+	const pathRef = React.useRef<SVGPathElement | null>(null);
 
 	const render = React.useMemo(() => {
 		if (!font) return null;
@@ -411,27 +410,41 @@ export function CornuText({
 		fontOptions, singleStroke, maxWidth, lineHeight, align,
 	]);
 
-	// Nothing to draw: still loading, load error, or empty/whitespace text.
-	if (!font || !render || render.segments.length === 0) return <>{fallback}</>;
+	const path = render && render.segments.length > 0 ? render.path : null;
+	const drawActive = !!draw && !reduced && !!path;
 
-	const drawActive = !!draw && !reduced;
-	const drawStyleProps: React.CSSProperties = drawActive
-		? { strokeDasharray: 1, strokeDashoffset: 1, animation: drawAnimation(draw!) }
-		: {};
-	if (drawActive) ensureKeyframes();
+	// Draw-on: (re)trigger imperatively whenever the geometry changes, mirroring
+	// CornuPath. Keeps render pure (no ensureKeyframes/DOM work during render).
+	React.useEffect(() => {
+		const el = pathRef.current;
+		if (!el) return;
+		if (!drawActive) {
+			el.style.animation = '';
+			el.style.strokeDasharray = '';
+			el.style.strokeDashoffset = '';
+			return;
+		}
+		ensureKeyframes();
+		el.style.strokeDasharray = '1';
+		el.style.strokeDashoffset = '1';
+		el.style.animation = 'none';
+		void el.getBoundingClientRect();
+		el.style.animation = draw ? drawAnimation(draw) : '';
+	}, [drawActive, path, draw]);
+
+	// Nothing to draw: still loading, load error, or empty/whitespace text.
+	if (!font || !path || !render) return <>{fallback}</>;
 
 	const pathEl = (
 		<path
-			// Re-key on geometry so the draw-on animation restarts when text changes.
-			key={drawActive ? render.path : undefined}
-			d={render.path}
+			ref={pathRef}
+			d={path}
 			pathLength={drawActive ? 1 : undefined}
 			fill="none"
 			stroke="currentColor"
 			strokeWidth={2}
 			{...(bare ? { role: 'img', 'aria-label': text } : {})}
 			{...pathProps}
-			style={{ ...drawStyleProps, ...pathProps?.style }}
 		/>
 	);
 

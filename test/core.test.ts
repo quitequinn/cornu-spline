@@ -99,6 +99,18 @@ describe('cornuSegments', () => {
 		expect(Math.hypot(last.x - 0, last.y - 0)).toBeLessThan(1e-3);
 	});
 
+	it('terminates on duplicate non-finite points (no infinite loop)', () => {
+		// Regression: Set-based dedupe must not spin on NaN keys.
+		expect(() =>
+			cornuSegments([
+				[NaN, NaN],
+				[NaN, NaN],
+				[0, 0],
+				[100, 0],
+			]),
+		).not.toThrow();
+	});
+
 	it('does not throw on duplicate points', () => {
 		const segs = cornuSegments([
 			[0, 0],

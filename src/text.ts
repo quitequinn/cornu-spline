@@ -22,10 +22,16 @@ import {
 const ot: typeof opentype =
 	(opentype as unknown as { default?: typeof opentype }).default ?? opentype;
 
-if (typeof ot?.parse !== 'function') {
-	throw new Error(
-		'cornu-spline: could not resolve opentype.js `parse()`. Ensure opentype.js v2 is installed and resolvable.',
-	);
+// Resolve opentype's `parse` lazily (only the font-loading paths need it), so
+// importing the pure helpers doesn't require opentype to be present, and so
+// there's no top-level side effect that could trip tree-shaking.
+function requireParse(): typeof opentype.parse {
+	if (typeof ot?.parse !== 'function') {
+		throw new Error(
+			'cornu-spline: could not resolve opentype.js `parse()`. Ensure opentype.js v2 is installed and resolvable.',
+		);
+	}
+	return ot.parse;
 }
 
 /** A glyph path command as produced by opentype.js `Path.commands`. */
@@ -464,7 +470,7 @@ export async function loadFont(source: FontSource): Promise<CornuFont> {
 	} else {
 		buffer = source;
 	}
-	return new CornuFont(ot.parse(buffer));
+	return new CornuFont(requireParse()(buffer));
 }
 
 /** Parse a font already in memory (ArrayBuffer/Uint8Array) synchronously. */
@@ -476,5 +482,5 @@ export function parseFont(data: ArrayBuffer | Uint8Array): CornuFont {
 					data.byteOffset + data.byteLength,
 			  ) as ArrayBuffer)
 			: data;
-	return new CornuFont(ot.parse(buffer));
+	return new CornuFont(requireParse()(buffer));
 }

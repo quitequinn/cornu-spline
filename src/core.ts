@@ -437,7 +437,9 @@ function dedupe(points: Pt[]): Pt[] {
 	for (const [x, y] of points) {
 		let nx = x;
 		let ny = y;
-		while (seen.has(`${nx},${ny}`)) {
+		// Guard on finiteness: nudging a non-finite coordinate never changes the
+		// key, so only loop while the values can actually move.
+		while (seen.has(`${nx},${ny}`) && Number.isFinite(nx) && Number.isFinite(ny)) {
 			nx += 1e-9;
 			ny += 1e-9;
 		}
