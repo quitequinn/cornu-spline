@@ -3,7 +3,6 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="color-scheme" content="light dark" />
 		<title>cornu-spline — smooth Cornu / Euler-spiral curves for JS & React</title>
 		<meta
 			name="description"
@@ -11,40 +10,22 @@
 		/>
 		<style>
 			:root {
-				--bg: #ffffff;
-				--ink: #111111;
-				--muted: #555555;
+				--ink: #111;
+				--muted: #666;
 				--line: #e6e6e6;
-				--code-bg: #f4f4f4;
-				--link: #0b62d6;
-				--field: #ffffff;
-			}
-			@media (prefers-color-scheme: dark) {
-				:root {
-					--bg: #0d0d12;
-					--ink: #e9e9ec;
-					--muted: #9aa0aa;
-					--line: #2a2a33;
-					--code-bg: #1a1a22;
-					--link: #79c0ff;
-					--field: #15151c;
-				}
+				--accent: #111;
 			}
 			* {
 				box-sizing: border-box;
 			}
-			html,
-			body {
-				margin: 0;
-				padding: 0;
-			}
 			body {
 				font: 15px/1.6 system-ui, -apple-system, sans-serif;
-				background: var(--bg);
 				color: var(--ink);
+				margin: 0;
+				background: #fff;
 			}
 			.wrap {
-				max-width: 880px;
+				max-width: 860px;
 				margin: 0 auto;
 				padding: 2.5rem 1.25rem 5rem;
 			}
@@ -57,38 +38,35 @@
 				margin: 0 0 1.5rem;
 			}
 			a {
-				color: var(--link);
+				color: #0b62d6;
 			}
 			.links {
 				display: flex;
 				gap: 1rem;
 				flex-wrap: wrap;
-				align-items: center;
-				margin-bottom: 1.5rem;
+				margin-bottom: 2rem;
 			}
 			section {
+				border-top: 1px solid var(--line);
 				padding-top: 1.5rem;
-				margin-top: 1.5rem;
+				margin-top: 2rem;
 			}
 			h2 {
-				font-size: 1.05rem;
-				margin: 0 0 0.75rem;
+				font-size: 1.1rem;
 			}
-			/* Flat, full-width stages — no rounded corners, clipped content. */
 			.stage {
-				display: block;
-				width: 100%;
 				border: 1px solid var(--line);
-				background: transparent;
-				color: var(--ink);
-				overflow: hidden;
+				border-radius: 12px;
+				background: #fff;
+				width: 100%;
+				display: block;
 			}
 			.controls {
 				display: flex;
 				flex-wrap: wrap;
 				gap: 1rem;
 				align-items: center;
-				margin: 0.75rem 0 0;
+				margin: 1rem 0;
 				color: var(--muted);
 			}
 			label {
@@ -96,55 +74,24 @@
 				gap: 0.4rem;
 				align-items: center;
 			}
-			input[type='text'],
-			select,
-			input[type='file'] {
-				padding: 0.3rem 0.45rem;
+			input[type='text'] {
+				padding: 0.35rem 0.5rem;
 				border: 1px solid var(--line);
-				background: var(--field);
-				color: var(--ink);
+				border-radius: 6px;
 				font: inherit;
 			}
 			button {
 				padding: 0.4rem 0.8rem;
-				border: 1px solid var(--line);
-				background: var(--field);
-				color: var(--ink);
+				border-radius: 6px;
+				border: 1px solid #ccc;
+				background: #fafafa;
 				cursor: pointer;
 				font: inherit;
 			}
-			button:hover {
-				border-color: var(--muted);
-			}
-			/* Code formatting */
-			pre.code,
 			code {
-				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-				font-size: 0.9em;
-				background: var(--code-bg);
-				color: var(--ink);
-			}
-			code {
-				padding: 0.1rem 0.4rem;
-			}
-			pre.code {
-				margin: 0;
-				padding: 0.6rem 0.8rem;
-				overflow-x: auto;
-				border: 1px solid var(--line);
-			}
-			.topbar {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 1rem;
-				align-items: center;
-				margin-bottom: 1rem;
-				color: var(--muted);
-			}
-			footer {
-				color: var(--muted);
-				font-size: 0.85rem;
-				margin-top: 3rem;
+				background: #f4f4f4;
+				padding: 0.1rem 0.35rem;
+				border-radius: 4px;
 			}
 			@keyframes cornu-draw {
 				to {
@@ -155,6 +102,11 @@
 				stroke-dasharray: 1;
 				stroke-dashoffset: 1;
 				animation: cornu-draw 1.8s ease-in-out forwards;
+			}
+			footer {
+				color: var(--muted);
+				font-size: 0.85rem;
+				margin-top: 3rem;
 			}
 		</style>
 		<script type="importmap">
@@ -178,19 +130,11 @@
 			<div class="links">
 				<a href="https://www.npmjs.com/package/cornu-spline">npm</a>
 				<a href="https://github.com/QuiteQuinn/cornu-spline">GitHub</a>
-				<pre class="code"><code>npm i cornu-spline</code></pre>
-			</div>
-
-			<!-- Global font loader -->
-			<div class="topbar">
-				<label
-					>Font <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" /></label
-				>
-				<span id="fontName">Caveat (bundled)</span>
+				<code>npm i cornu-spline</code>
 			</div>
 
 			<!-- Hero: flowing text that draws itself on -->
-			<section style="margin-top: 0; padding-top: 0">
+			<section style="border-top: none; margin-top: 0; padding-top: 0">
 				<svg class="stage" id="hero" height="240" viewBox="0 0 860 240"></svg>
 				<div class="controls">
 					<label>Text <input type="text" id="heroText" value="Cornu" /></label>
@@ -270,8 +214,6 @@
 					`${bounds.minX - pad} ${bounds.minY - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`,
 				);
 			};
-			// Strokes use currentColor so they follow the page's light/dark theme.
-			const stroke = 'currentColor';
 
 			let font = null;
 
@@ -289,7 +231,7 @@
 					singleStroke: single,
 				});
 				fit(hero, segmentBounds(segs), 40);
-				hero.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round" ${
+				hero.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" ${
 					animate ? 'pathLength="1" class="draw"' : ''
 				}/>`;
 			}
@@ -306,7 +248,7 @@
 					singleStroke: document.getElementById('single').checked,
 				});
 				fit(textStage, segmentBounds(segs), 30);
-				textStage.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round"/>`;
+				textStage.innerHTML = `<path d="${toPath(segs)}" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round"/>`;
 			}
 
 			// --- Paragraph ---
@@ -323,14 +265,14 @@
 					align: document.getElementById('paraAlign').value,
 				});
 				fit(paraStage, bounds, 24);
-				paraStage.innerHTML = `<path d="${toPath(segments)}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/>`;
+				paraStage.innerHTML = `<path d="${toPath(segments)}" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round"/>`;
 			}
 
 			// --- Points / animation ---
 			const anim = document.getElementById('anim');
 			const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 			pathEl.setAttribute('fill', 'none');
-			pathEl.setAttribute('stroke', stroke);
+			pathEl.setAttribute('stroke', '#111');
 			pathEl.setAttribute('stroke-width', '3');
 			pathEl.setAttribute('stroke-linecap', 'round');
 			anim.appendChild(pathEl);
@@ -380,13 +322,6 @@
 			});
 			document.getElementById('replay').addEventListener('click', drawOn);
 
-			// Re-render every section (used after the font changes).
-			function renderAll() {
-				renderHero(false);
-				renderText();
-				renderPara();
-			}
-
 			// wire playground controls
 			for (const id of ['heroText', 'heroSingle'])
 				document.getElementById(id).addEventListener('input', () => renderHero());
@@ -395,20 +330,6 @@
 				document.getElementById(id).addEventListener('input', renderText);
 			for (const id of ['paraW', 'paraAlign', 'paraDetail'])
 				document.getElementById(id).addEventListener('input', renderPara);
-
-			// Font loading: pick any .ttf/.otf/.woff — it renders exactly as drawn
-			// in that file (e.g. an italic font stays italic).
-			document.getElementById('fontFile').addEventListener('change', async (e) => {
-				const file = e.target.files[0];
-				if (!file) return;
-				try {
-					font = parseFont(new Uint8Array(await file.arrayBuffer()));
-					document.getElementById('fontName').textContent = file.name;
-					renderAll();
-				} catch (err) {
-					document.getElementById('fontName').textContent = `Couldn't read ${file.name}: ${err}`;
-				}
-			});
 
 			// load bundled font, then render everything
 			fetch('./font.ttf')
